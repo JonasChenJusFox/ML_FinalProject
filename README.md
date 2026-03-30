@@ -35,6 +35,7 @@ nearbite/
 │
 ├── app.py                        # Streamlit entry point
 ├── requirements.txt              # Python dependencies
+├── README.md                     # Project documentation and setup instructions
 ├── .env.example                  # Environment variable template
 │
 ├── data/

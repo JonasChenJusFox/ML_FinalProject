@@ -113,6 +113,7 @@ streamlit run app.py
 | Source | Used For |
 |--------|----------|
 | [Yelp Fusion API](https://fusion.yelp.com/) | Live restaurant metadata (name, rating, price, categories, hours). Limited to 500 req/day — responses cached locally. |
+| [Google Places API](https://developers.google.com/maps/documentation/places/web-service/overview) | Live review text for sentiment analysis, semantic embedding, and vibe matching. |
 | [NYC Open Data — DOHMH Restaurant Inspections](https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j/about_data) | Supplemental official restaurant registry |
 | [TripAdvisor NYC Dataset (Kaggle, 10k+)](https://www.kaggle.com/datasets/rayhan32/trip-advisor-newyork-city-restaurants-dataset-10k) | Review text for vibe tag extraction and NLP training |
 | [Yelp Open Dataset (Kaggle)](https://www.kaggle.com/datasets/yelp-dataset/yelp-dataset) | Sentiment analysis and embedding model training (NYC subset) |

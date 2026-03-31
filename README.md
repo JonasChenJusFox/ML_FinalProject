@@ -28,6 +28,12 @@ NearBite is a semantic restaurant discovery app for New York City. Unlike tradit
 
 ---
 
+## Core Idea
+
+NearBite is an end-to-end ML system: it uses semantic embeddings to retrieve restaurants that match user intent, then applies a ranking model to score and order candidates. The ranking stage combines relevance and business/user features (not just fixed rules). Over time, the system personalizes results using user interaction signals such as clicks and likes.
+
+---
+
 ## Repo Structure
 
 ```
@@ -126,45 +132,43 @@ streamlit run app.py
 
 ## Algorithm
 
-To meet the course requirement, **cosine similarity is implemented from scratch** (no NumPy or scikit-learn) in `embeddings/vectorizer.py`:
+NearBite uses a custom **Iterative Optimization** engine, not a thin scikit-learn wrapper. We optimize ranking weights by minimizing a loss function over synthetic interaction labels (continuous preference scores) with gradient descent:
 
-```python
-def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
-    dot_product = sum(v1 * v2 for v1, v2 in zip(vec1, vec2))
-    norm_vec1 = sum(v ** 2 for v in vec1) ** 0.5
-    norm_vec2 = sum(v ** 2 for v in vec2) ** 0.5
-    if norm_vec1 == 0 or norm_vec2 == 0:
-        return 0.0
-    return dot_product / (norm_vec1 * norm_vec2)
-```
+$$
+w_{new} = w_{old} - \eta \cdot \nabla L
+$$
 
-This drives the semantic retrieval step: every user query is embedded and ranked against all pre-computed restaurant embeddings using this function.
+This produces a learned ranking vector that combines semantic relevance, popularity, and price-match signals in a single trainable scoring function.
 
 ---
 
-## Search Pipeline
+## System Pipeline
 
-```
-User Query (natural language)
-        │
-        ▼
-  Query Embedding          ← embeddings/vectorizer.py
-        │
-        ▼
-Semantic Candidate Retrieval (cosine similarity, top-K)
-        │
-        ▼
-Structured Filtering         ← recommendation/ranker.py
-(price, cuisine, dietary, distance, open_now ...)
-        │
-        ▼
-Personalized Ranking         ← recommendation/ranker.py
-(semantic score + user history + popularity signal)
-        │
-        ▼
-   Final Results Display     ← frontend/ui.py
-   (ranked cards + map view)
-```
+### Offline Pipeline
+
+- **Data collection**: ingest restaurant metadata and review text from APIs/datasets
+- **Document construction**: build unified restaurant documents (attributes + text signals)
+- **Embedding generation**: precompute vector embeddings for restaurant documents
+- **Preprocessing / feature prep**: clean fields, normalize categories/locations, and prepare ranking features
+
+### Online Pipeline
+
+- **User query → embedding**: convert the live natural-language query into a vector
+- **Semantic retrieval (top-K)**: retrieve the most relevant restaurant candidates by vector similarity
+- **Structured filtering**: apply hard constraints (price, cuisine, dietary, neighborhood, etc.)
+- **Model-based ranking (learnable)**: score candidates with a learnable ranking component
+- **Return results**: serve ranked cards + map-ready outputs to the UI
+- **Log interactions**: store clicks/likes/conversions for future personalization updates
+
+---
+
+## Ranking and Personalization
+
+- **Ranking as a prediction problem**: each candidate is scored by a learned model rather than fixed manual constants
+- **Learned feature vector**: core features include semantic similarity, popularity (rating/review signals), and price match
+- **Interaction-driven updates**: user feedback (clicks, likes) provides supervision to iteratively refine model weights via gradient-based optimization
+- **Cold-start strategy**: new users begin with a **Global Prior** model; as feedback accumulates, the system transitions to a **Personalized Model**
+- **User profile modeling**: interaction history is aggregated into a user profile (cuisine, dietary, price, location preferences) that informs feature computation and personalization
 
 ---
 

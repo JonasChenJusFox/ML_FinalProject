@@ -1,0 +1,26 @@
+# NearBite — requirements
+# Install with: pip install -r requirements.txt
+
+# --- App framework ---
+streamlit>=1.32.0
+
+# --- Data ---
+pandas>=2.0.0
+requests>=2.31.0         # Yelp Fusion API calls
+
+# --- Embeddings ---
+sentence-transformers>=2.6.0
+
+# --- Database ---
+psycopg2-binary>=2.9.9   # PostgreSQL driver
+pgvector>=0.2.4          # pgvector Python client
+
+# --- Environment ---
+python-dotenv>=1.0.0
+
+# --- Visualization / Map ---
+folium>=0.16.0
+streamlit-folium>=0.19.0
+
+# --- Dev / Testing ---
+pytest>=8.0.0

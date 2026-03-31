@@ -53,7 +53,7 @@ nearbite/
 │   └── __init__.py
 │
 ├── recommendation/
-│   ├── ranker.py                 # Filtering, ranking score, content-based recs (Albee)
+│   ├── ranker.py                 # Feature scoring, weight training, ranking, and personalization (Albee)
 │   └── __init__.py
 │
 ├── frontend/

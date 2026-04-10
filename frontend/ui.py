@@ -1,72 +1,46 @@
 """
 frontend/ui.py
-Owner: Jonas (+ Fidaa for design)
+Owner: Jonas Chen
 
 Responsibilities:
-- Render the Streamlit search bar
-- Render the sidebar filter UI
-- Display restaurant result cards with images
-- Render the map view of results
+- Main frontend router for the Streamlit app
+- Connects navigation state to page rendering
+- Passes restaurant data into the correct view
+- Stores frontend-ready data and filter options in session state
+- Coordinates the overall UI flow of the application
 """
+
+from __future__ import annotations
+
+from typing import Callable
 
 import streamlit as st
 
+from frontend.adapters import get_filter_options
+from frontend.components.nav import render_nav
+from frontend.views.discover import render_discover
+from frontend.views.home import render_home
+from frontend.views.profile import render_profile
+from frontend.views.wrapped import render_wrapped
 
-def render_search_bar() -> str:
-    """
-    Render the main semantic search input.
 
-    Returns:
-        The user's query string (empty string if nothing typed).
-    """
-    query = st.text_input(
-        label="What are you looking for?",
-        placeholder='e.g. "cheap spicy ramen near NYU" or "cozy date night spot in the East Village"',
+PAGE_RENDERERS = {
+    "Home": render_home,
+    "Discover": render_discover,
+    "Profile": render_profile,
+    "Wrapped": render_wrapped,
+}
+
+
+def render_app(search_callable: Callable | None, preview_restaurants: list[dict]) -> None:
+    st.session_state.preview_restaurants = (
+        preview_restaurants or st.session_state.get("preview_restaurants", [])
     )
-    return query
+    st.session_state.filter_options = get_filter_options(st.session_state.preview_restaurants)
 
+    current_page = render_nav()
+    renderer = PAGE_RENDERERS.get(current_page, render_home)
 
-def render_filters() -> dict:
-    """
-    Render the sidebar filter panel.
-
-    Returns:
-        Dict of active filter values.
-    """
-    with st.sidebar:
-        st.header("Filters")
-
-        # TODO (Jonas): implement filter UI widgets
-        # Placeholder — returns empty filters so app doesn't crash
-        filters = {
-            "price": [],
-            "cuisines": [],
-            "min_rating": 0.0,
-            "open_now": False,
-            "dietary": [],
-            "neighborhood": "",
-            "max_distance_km": 5.0,
-            "pet_friendly": False,
-            "kid_friendly": False,
-            "accessible": False,
-        }
-
-    return filters
-
-
-def render_results(restaurants: list[dict]) -> None:
-    """
-    Render the ranked list of restaurant result cards.
-
-    Args:
-        restaurants: Ordered list of restaurant dicts from the ranker.
-    """
-    if not restaurants:
-        st.warning("No restaurants found. Try a different query or adjust your filters.")
-        return
-
-    st.markdown(f"**{len(restaurants)} results found**")
-
-    # TODO (Jonas): replace with rich card layout + map view
-    for r in restaurants:
-        st.write(r.get("name", "Unknown"))
+    st.markdown("<div class='nb-shell'>", unsafe_allow_html=True)
+    renderer(st.session_state.preview_restaurants)
+    st.markdown("</div>", unsafe_allow_html=True)

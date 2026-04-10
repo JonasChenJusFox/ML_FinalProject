@@ -1,100 +1,431 @@
-"""
-recommendation/ranker.py
-Owner: Albee
+"""Restaurant ranking logic for NearBite."""
 
-Responsibilities:
-- Apply structured filters (price, cuisine, distance, dietary restrictions, etc.)
-- Compute a final ranking score combining semantic similarity + personalization
-- Recommend restaurants based on user interaction history (content-based filtering)
-- Produce a final ranked list for display
-"""
+from __future__ import annotations
+
+import math
+from typing import Any
+
+from recommendation.utils import clamp, distance_score as _distance_score, price_level_value, safe_log1p, to_float
+
+DEFAULT_RANKING_WEIGHTS: dict[str, float] = {
+    "semantic": 0.72,
+    "rating": 0.10,
+    "popularity": 0.08,
+    "price_match": 0.05,
+    "distance": 0.05,
+}
 
 
-def apply_filters(candidates: list[dict], filters: dict) -> list[dict]:
+def _extract_category_strings(restaurant: dict[str, Any]) -> set[str]:
+    """Extract normalized category strings from a restaurant record."""
+    categories = restaurant.get("categories", [])
+    extracted: set[str] = set()
+
+    if isinstance(categories, list):
+        for category in categories:
+            if isinstance(category, str):
+                cleaned = category.strip().lower()
+                if cleaned:
+                    extracted.add(cleaned)
+            elif isinstance(category, dict):
+                title = category.get("title") or category.get("name")
+                if isinstance(title, str):
+                    cleaned = title.strip().lower()
+                    if cleaned:
+                        extracted.add(cleaned)
+
+    return extracted
+
+
+def apply_filters(candidates: list[dict[str, Any]], filters: dict[str, Any]) -> list[dict[str, Any]]:
+    """Apply lightweight structured filtering to candidate restaurants."""
+    if not candidates:
+        return []
+    if not filters:
+        return list(candidates)
+
+    allowed_prices = {
+        str(price).strip().lower()
+        for price in filters.get("price", [])
+        if isinstance(price, str) and price.strip()
+    }
+    required_categories = {
+        str(category).strip().lower()
+        for category in filters.get("cuisines", [])
+        if isinstance(category, str) and category.strip()
+    }
+    min_rating = to_float(filters.get("min_rating"), 0.0)
+    max_distance_km = filters.get("max_distance_km")
+
+    filtered: list[dict[str, Any]] = []
+    for restaurant in candidates:
+        if not isinstance(restaurant, dict):
+            continue
+
+        if allowed_prices:
+            restaurant_price = str(restaurant.get("price", "")).strip().lower()
+            if restaurant_price not in allowed_prices:
+                continue
+
+        if required_categories:
+            restaurant_categories = _extract_category_strings(restaurant)
+            if not (restaurant_categories & required_categories):
+                continue
+
+        if to_float(restaurant.get("rating"), 0.0) < min_rating:
+            continue
+
+        if max_distance_km is not None:
+            distance = restaurant.get("distance_km")
+            if distance is not None and to_float(distance, 0.0) > to_float(max_distance_km, 0.0):
+                continue
+
+        filtered.append(restaurant)
+
+    return filtered
+
+
+def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
+    """Compute cosine similarity using plain Python math."""
+    if not vec1 or not vec2 or len(vec1) != len(vec2):
+        return 0.0
+
+    dot_product = 0.0
+    norm1_squared = 0.0
+    norm2_squared = 0.0
+
+    for value1, value2 in zip(vec1, vec2):
+        dot_product += value1 * value2
+        norm1_squared += value1 * value1
+        norm2_squared += value2 * value2
+
+    if norm1_squared <= 0.0 or norm2_squared <= 0.0:
+        return 0.0
+
+    return dot_product / (math.sqrt(norm1_squared) * math.sqrt(norm2_squared))
+
+
+def fuse_vectors(
+    query_vec: list[float],
+    user_vec: list[float] | None,
+    alpha: float = 0.3,
+) -> list[float]:
+    """Fuse query and user vectors where ``alpha`` is user-preference weight."""
+    if user_vec is None or len(query_vec) != len(user_vec):
+        return list(query_vec)
+
+    alpha_value = clamp(alpha, 0.0, 1.0)
+    return [
+        (1.0 - alpha_value) * query_value + alpha_value * user_value
+        for query_value, user_value in zip(query_vec, user_vec)
+    ]
+
+
+def retrieve_top_clusters(
+    fused_vec: list[float],
+    cluster_centroids: dict[int, list[float]],
+    top_k_clusters: int = 2,
+) -> list[dict[str, float | int]]:
+    """Return top clusters sorted by centroid similarity to the fused query vector."""
+    if not cluster_centroids:
+        return []
+
+    scored_clusters: list[dict[str, float | int]] = []
+    for cluster_id, centroid_vec in cluster_centroids.items():
+        if not isinstance(centroid_vec, list):
+            continue
+        cluster_score = cosine_similarity(fused_vec, centroid_vec)
+        scored_clusters.append({"cluster_id": cluster_id, "cluster_score": cluster_score})
+
+    scored_clusters.sort(key=lambda item: to_float(item.get("cluster_score"), 0.0), reverse=True)
+    top_k_value = max(1, int(to_float(top_k_clusters, 2)))
+    return scored_clusters[:top_k_value]
+
+
+def filter_restaurants_by_clusters(
+    restaurants: list[dict[str, Any]],
+    selected_cluster_ids: list[int],
+) -> list[dict[str, Any]]:
     """
-    Filter a list of candidate restaurants by structured constraints.
+    Keep only restaurants whose ``cluster_id`` is in ``selected_cluster_ids``.
 
-    Args:
-        candidates: List of restaurant dicts (pre-ranked by semantic search).
-        filters: Dict of active filter values, e.g.:
-            {
-                "price": ["$", "$$"],
-                "cuisines": ["Japanese", "Korean"],
-                "min_rating": 4.0,
-                "open_now": True,
-                "dietary": ["vegan"],
-                "neighborhood": "East Village",
-                "max_distance_km": 2.0,
-                "pet_friendly": False,
-                "kid_friendly": False,
-                "accessible": False,
-            }
-
-    Returns:
-        Filtered list of restaurant dicts.
+    Safety behavior: if no clusters are selected, return the original list so
+    the online path can still produce results via global ranking fallback.
     """
-    raise NotImplementedError("TODO (Albee): implement apply_filters()")
+    if not selected_cluster_ids:
+        return list(restaurants)
+
+    selected_ids = set(selected_cluster_ids)
+    return [
+        restaurant
+        for restaurant in restaurants
+        if isinstance(restaurant, dict) and restaurant.get("cluster_id") in selected_ids
+    ]
 
 
-def compute_ranking_score(
-    restaurant: dict,
-    similarity_score: float,
-    user_history: list[dict],
-) -> float:
+def compute_semantic_score(fused_vec: list[float], restaurant_vec: list[float]) -> float:
+    """Return the semantic similarity between the fused query vector and a restaurant embedding."""
+    return cosine_similarity(fused_vec, restaurant_vec)
+
+
+def compute_price_match(user_price_pref: str | None, restaurant_price: str | None) -> float:
+    """Score how well the restaurant price matches the user's preference."""
+    if not user_price_pref:
+        return 0.5
+    if not restaurant_price:
+        return 0.5
+
+    user_level = price_level_value(user_price_pref)
+    restaurant_level = price_level_value(restaurant_price)
+
+    if user_level <= 0.0 or restaurant_level <= 0.0:
+        return 0.5
+
+    difference = abs(user_level - restaurant_level)
+    if difference == 0:
+        return 1.0
+    if difference == 1:
+        return 0.75
+    if difference == 2:
+        return 0.5
+    if difference == 3:
+        return 0.25
+    return 0.0
+
+
+def compute_rating_score(rating: float | None) -> float:
+    """Normalize a 5-star rating to the range ``[0, 1]``."""
+    return clamp(to_float(rating, 0.0) / 5.0)
+
+
+def compute_popularity_score(review_count: int | None) -> float:
+    """Transform review counts into a bounded popularity score."""
+    review_value = max(0.0, to_float(review_count, 0.0))
+    return clamp(safe_log1p(review_value) / safe_log1p(5000.0))
+
+
+def compute_distance_penalty(distance_km: float | None, max_distance_km: float = 10.0) -> float:
+    """Return a proximity score where closer restaurants score better."""
+    return _distance_score(distance_km, max_distance_km=max_distance_km)
+
+
+def _merge_weights(weights: dict[str, float] | None) -> dict[str, float]:
+    merged_weights = dict(DEFAULT_RANKING_WEIGHTS)
+    if weights:
+        for key, value in weights.items():
+            merged_weights[key] = to_float(value, merged_weights.get(key, 0.0))
+
+    total = sum(max(0.0, weight) for weight in merged_weights.values())
+    if total <= 0.0:
+        return dict(DEFAULT_RANKING_WEIGHTS)
+
+    return {key: max(0.0, weight) / total for key, weight in merged_weights.items()}
+
+
+def compute_final_score(
+    semantic_score: float,
+    rating_score: float,
+    popularity_score: float,
+    price_match_score: float,
+    distance_score: float,
+    weights: dict[str, float] | None = None,
+) -> tuple[float, dict[str, float]]:
+    """Combine all score components into a final ranking score."""
+    normalized_weights = _merge_weights(weights)
+    breakdown = {
+        "semantic": clamp(semantic_score, -1.0, 1.0),
+        "rating": clamp(rating_score),
+        "popularity": clamp(popularity_score),
+        "price_match": clamp(price_match_score),
+        "distance": clamp(distance_score),
+    }
+
+    final_score = 0.0
+    for key, component_score in breakdown.items():
+        final_score += normalized_weights.get(key, 0.0) * component_score
+
+    return clamp(final_score), breakdown
+
+
+def rank_restaurants(
+    query_vec: list[float],
+    user_vec: list[float] | None,
+    restaurants: list[dict[str, Any]],
+    cluster_centroids: dict[int, list[float]],
+    user_price_pref: str | None = None,
+    alpha: float = 0.3,
+    top_k_clusters: int = 2,
+    top_k_results: int = 20,
+    weights: dict[str, float] | None = None,
+) -> list[dict[str, Any]]:
     """
-    Compute a final ranking score for a restaurant.
+    Run NearBite online inference: vector fusion -> cluster retrieval -> ranking.
 
-    Combines:
-    - Semantic similarity score (from vectorizer)
-    - Personalization boost (based on user history)
-    - Popularity signal (rating, review count)
-    - Distance penalty
-
-    Args:
-        restaurant: Normalized restaurant dict.
-        similarity_score: Cosine similarity to query vector.
-        user_history: User's past interactions.
-
-    Returns:
-        Final ranking score (higher = better).
+    Fallback behavior:
+    - If no clusters are available, use all restaurants.
+    - If cluster-filtered candidates are empty, fall back to all restaurants.
     """
-    raise NotImplementedError("TODO (Albee): implement compute_ranking_score()")
+    fused_vec = fuse_vectors(query_vec, user_vec, alpha=alpha)
+
+    top_clusters = retrieve_top_clusters(
+        fused_vec=fused_vec,
+        cluster_centroids=cluster_centroids,
+        top_k_clusters=top_k_clusters,
+    )
+    cluster_score_map: dict[int, float] = {
+        int(item["cluster_id"]): to_float(item.get("cluster_score"), 0.0)
+        for item in top_clusters
+        if "cluster_id" in item
+    }
+    selected_cluster_ids = list(cluster_score_map.keys())
+
+    candidates = filter_restaurants_by_clusters(restaurants, selected_cluster_ids)
+    if not candidates:
+        candidates = list(restaurants)
+
+    ranked_results: list[dict[str, Any]] = []
+
+    for restaurant in candidates:
+        if not isinstance(restaurant, dict):
+            continue
+
+        restaurant_vec = restaurant.get("embedding") or []
+        if not isinstance(restaurant_vec, list):
+            restaurant_vec = []
+
+        semantic_score = compute_semantic_score(fused_vec, restaurant_vec)
+        rating_score = compute_rating_score(restaurant.get("rating"))
+        popularity_score = compute_popularity_score(restaurant.get("review_count"))
+        price_match = compute_price_match(user_price_pref, restaurant.get("price"))
+        distance_component = compute_distance_penalty(restaurant.get("distance_km"))
+
+        final_score, breakdown = compute_final_score(
+            semantic_score=semantic_score,
+            rating_score=rating_score,
+            popularity_score=popularity_score,
+            price_match_score=price_match,
+            distance_score=distance_component,
+            weights=weights,
+        )
+
+        result = dict(restaurant)
+        result["business_id"] = restaurant.get("business_id")
+        result["name"] = restaurant.get("name")
+        result["cluster_id"] = restaurant.get("cluster_id")
+        result["cluster_score"] = cluster_score_map.get(restaurant.get("cluster_id"), 0.0)
+        result["semantic_score"] = semantic_score
+        result["final_score"] = final_score
+        result["score_breakdown"] = breakdown
+        ranked_results.append(result)
+
+    ranked_results.sort(key=lambda item: item.get("final_score", 0.0), reverse=True)
+    return ranked_results[: max(1, int(to_float(top_k_results, 20)))]
+
+
+def rank_candidates_from_fused_vector(
+    fused_vec: list[float],
+    restaurants: list[dict[str, Any]],
+    user_price_pref: str | None = None,
+    weights: dict[str, float] | None = None,
+) -> list[dict[str, Any]]:
+    """Rank restaurant candidates directly from a precomputed fused vector."""
+    ranked_results: list[dict[str, Any]] = []
+
+    for restaurant in restaurants:
+        if not isinstance(restaurant, dict):
+            continue
+
+        restaurant_vec = restaurant.get("embedding")
+        if not isinstance(restaurant_vec, list):
+            restaurant_vec = []
+
+        semantic_score = compute_semantic_score(fused_vec, restaurant_vec)
+        rating_score = compute_rating_score(restaurant.get("rating"))
+        popularity_score = compute_popularity_score(restaurant.get("review_count"))
+        price_match = compute_price_match(user_price_pref, restaurant.get("price"))
+        distance_component = compute_distance_penalty(restaurant.get("distance_km"))
+
+        final_score, breakdown = compute_final_score(
+            semantic_score=semantic_score,
+            rating_score=rating_score,
+            popularity_score=popularity_score,
+            price_match_score=price_match,
+            distance_score=distance_component,
+            weights=weights,
+        )
+
+        enriched = dict(restaurant)
+        enriched["semantic_score"] = semantic_score
+        enriched["final_score"] = final_score
+        enriched["score_breakdown"] = breakdown
+        ranked_results.append(enriched)
+
+    ranked_results.sort(key=lambda item: item.get("final_score", 0.0), reverse=True)
+    return ranked_results
 
 
 def rank_candidates(
-    candidates: list[tuple[dict, float]],
-    user_history: list[dict],
-) -> list[dict]:
-    """
-    Rank candidate restaurants and return the final ordered list.
+    candidates: list[tuple[dict[str, Any], float]],
+    user_history: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Compatibility wrapper for the older pipeline that already has similarity scores."""
+    del user_history
 
-    Args:
-        candidates: List of (restaurant, similarity_score) from retrieval.
-        user_history: User's past interactions for personalization.
+    ranked_results: list[dict[str, Any]] = []
+    for restaurant, similarity_score in candidates:
+        if not isinstance(restaurant, dict):
+            continue
 
-    Returns:
-        Ordered list of restaurant dicts (best first), with a `score` field added.
-    """
-    raise NotImplementedError("TODO (Albee): implement rank_candidates()")
+        rating_score = compute_rating_score(restaurant.get("rating"))
+        popularity_score = compute_popularity_score(restaurant.get("review_count"))
+        price_match = compute_price_match(None, restaurant.get("price"))
+        distance_component = compute_distance_penalty(restaurant.get("distance_km"))
+
+        final_score, breakdown = compute_final_score(
+            semantic_score=similarity_score,
+            rating_score=rating_score,
+            popularity_score=popularity_score,
+            price_match_score=price_match,
+            distance_score=distance_component,
+        )
+
+        result = dict(restaurant)
+        result["semantic_score"] = similarity_score
+        result["final_score"] = final_score
+        result["score_breakdown"] = breakdown
+        ranked_results.append(result)
+
+    ranked_results.sort(key=lambda item: item.get("final_score", 0.0), reverse=True)
+    return ranked_results
 
 
-def get_content_based_recommendations(
-    user_history: list[dict],
-    all_restaurants: list[dict],
-    top_k: int = 10,
-) -> list[dict]:
-    """
-    Recommend restaurants similar to what the user has liked/saved before.
+if __name__ == "__main__":
+    from recommendation.mock_data import (
+        MOCK_RESTAURANTS,
+        SAMPLE_CLUSTER_CENTROIDS,
+        SAMPLE_QUERY_VEC,
+        SAMPLE_USER_VEC,
+    )
 
-    Uses content-based filtering: compare restaurant embeddings of liked
-    restaurants against all candidates to surface similar ones.
+    fused = fuse_vectors(SAMPLE_QUERY_VEC, SAMPLE_USER_VEC, alpha=0.3)
+    top_clusters = retrieve_top_clusters(
+        fused_vec=fused,
+        cluster_centroids=SAMPLE_CLUSTER_CENTROIDS,
+        top_k_clusters=2,
+    )
+    print("Top clusters:")
+    for cluster in top_clusters:
+        print(f"- cluster_id={cluster['cluster_id']} score={to_float(cluster['cluster_score']):.4f}")
 
-    Args:
-        user_history: User's past interactions.
-        all_restaurants: Full restaurant pool.
-        top_k: Number of recommendations to return.
+    ranked = rank_restaurants(
+        query_vec=SAMPLE_QUERY_VEC,
+        user_vec=SAMPLE_USER_VEC,
+        restaurants=MOCK_RESTAURANTS,
+        cluster_centroids=SAMPLE_CLUSTER_CENTROIDS,
+        user_price_pref="$$",
+        top_k_results=20,
+    )
 
-    Returns:
-        List of recommended restaurant dicts.
-    """
-    raise NotImplementedError("TODO (Albee): implement get_content_based_recommendations()")
+    print("\nTop ranked restaurants:")
+    for item in ranked:
+        print(f"- {item.get('name')}: final={item.get('final_score'):.4f}")

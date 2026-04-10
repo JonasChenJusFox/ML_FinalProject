@@ -1,1 +1,10 @@
-venv/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+*.log
+node_modules/
+.pytest_cache/
+backup_local_changes/
+recovered_files/

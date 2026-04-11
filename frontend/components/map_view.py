@@ -22,7 +22,7 @@ def render_map(restaurants: list[dict]) -> None:
         return
 
     focus_id = st.session_state.get("focus_business_id")
-    focused = next((r for r in restaurants if r["business_id"] == focus_id), restaurants[0])
+    focused = next((r for r in restaurants if r.get("business_id") == focus_id), restaurants[0])
 
     center_lat = focused.get("latitude", 40.73)
     center_lon = focused.get("longitude", -73.99)
@@ -35,21 +35,25 @@ def render_map(restaurants: list[dict]) -> None:
         if not lat or not lon:
             continue
 
-        is_focus = item["business_id"] == focus_id
-        popup = f"{item['name']} · ⭐ {item.get('rating', 0.0):.1f}"
+        business_id = item.get("business_id", "")
+        name = item.get("name", "Restaurant")
+        rating = float(item.get("rating", 0.0) or 0.0)
+        is_focus = business_id == focus_id
+
+        popup = f"{name} · ⭐ {rating:.1f}"
 
         if is_focus:
             folium.Marker(
                 [lat, lon],
                 popup=popup,
-                tooltip=item["business_id"],
+                tooltip=business_id,
                 icon=folium.Icon(color="red", icon="cutlery", prefix="fa"),
             ).add_to(m)
         else:
             folium.Marker(
                 [lat, lon],
                 popup=popup,
-                tooltip=item["business_id"],
+                tooltip=business_id,
                 icon=folium.Icon(color="orange", icon="cutlery", prefix="fa"),
             ).add_to(m)
 
@@ -68,11 +72,8 @@ def render_map(restaurants: list[dict]) -> None:
         st.session_state.focus_business_id = clicked
         st.session_state.jump_to_business_id = clicked
 
-        # Clear lingering search text
-        st.session_state.discover_query = ""
-        st.session_state.search_query = ""
-        if "discover_query_input" in st.session_state:
-            st.session_state.discover_query_input = ""
-
+        # Do not directly modify discover_query here after widgets exist.
+        # Let discover.py clear filters on the next rerun before widget creation.
+        st.session_state.pending_discover_reset = True
         st.session_state.page = "Discover"
         st.rerun()

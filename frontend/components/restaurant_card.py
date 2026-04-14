@@ -5,7 +5,9 @@ Owner: Jonas Chen
 Responsibilities:
 - Renders individual restaurant cards
 - Displays image, cuisine, rating, address, and review snippet
-- Handles save / unsave actions
+- Handles save / unsave actions with login gating
+- Writes saved restaurant state to MongoDB for logged-in users
+- Logs wrapped-related interaction events to MongoDB
 - Supports focus-map behavior and comments dialog display
 - Optionally links out to the restaurant source page
 """
@@ -17,36 +19,20 @@ import html
 import streamlit as st
 
 from frontend.adapters import clean_text, get_current_origin, shorten_text
-
-
-@st.dialog("Comments")
-def show_comments_dialog(name: str, reviews: list) -> None:
-    st.subheader(name)
-
-    if not reviews:
-        st.write("No reviews available.")
-        return
-
-    shown_any = False
-    for idx, review in enumerate(reviews, start=1):
-        if isinstance(review, dict):
-            text = clean_text(review.get("text", ""))
-        else:
-            text = clean_text(str(review))
-
-        if text:
-            shown_any = True
-            st.markdown(f"**Comment {idx}**")
-            safe_text = html.escape(text).replace("\n", "<br>")
-            st.markdown(safe_text, unsafe_allow_html=True)
-            if idx < len(reviews):
-                st.divider()
-
-    if not shown_any:
-        st.write("No reviews available.")
+from frontend.auth import open_login_modal
+from frontend.components.comments_modal import open_comments_modal
+from integration.interaction_repo import (
+    get_saved_restaurant_ids,
+    save_restaurant_for_user,
+    unsave_restaurant_for_user,
+)
+from integration.wrapped_repo import log_user_interaction
 
 
 def _get_price_for_card(restaurant: dict) -> str:
+    """
+    Resolve the best available price label for display on the card.
+    """
     price_display = clean_text(restaurant.get("price_display", ""))
     if price_display and price_display != "Price not listed":
         return price_display
@@ -71,6 +57,9 @@ def _get_price_for_card(restaurant: dict) -> str:
 
 
 def _build_meta_line(restaurant: dict) -> str:
+    """
+    Build the short metadata line shown under the restaurant title.
+    """
     price_text = _get_price_for_card(restaurant)
     borough = restaurant.get("borough", "Unknown")
     travel_minutes = restaurant.get("travel_minutes", "—")
@@ -78,7 +67,7 @@ def _build_meta_line(restaurant: dict) -> str:
     origin = get_current_origin()
     origin_label = origin.get("label", "NYU")
 
-    meta_parts = []
+    meta_parts: list[str] = []
 
     if price_text:
         meta_parts.append(price_text)
@@ -92,7 +81,67 @@ def _build_meta_line(restaurant: dict) -> str:
     return " • ".join(meta_parts) if meta_parts else "Details not listed"
 
 
+def _log_if_logged_in(business_id: str, action: str) -> None:
+    """
+    Log an interaction only if the current user is logged in.
+    """
+    if not st.session_state.get("is_logged_in", False):
+        return
+
+    current_user = st.session_state.get("current_user")
+    username = current_user.get("username") if current_user else None
+    if not username:
+        return
+
+    log_user_interaction(username, business_id, action)
+
+
+def _handle_save_toggle(business_id: str, already_saved: bool, saved_ids: list[str]) -> None:
+    """
+    Save or unsave a restaurant.
+    If the user is not logged in, open the login modal instead.
+    """
+    if not st.session_state.get("is_logged_in", False):
+        open_login_modal()
+        st.rerun()
+
+    current_user = st.session_state.get("current_user")
+    username = current_user.get("username") if current_user else None
+
+    if not username:
+        open_login_modal()
+        st.rerun()
+
+    if already_saved:
+        unsave_restaurant_for_user(username, business_id)
+        _log_if_logged_in(business_id, "unsaved")
+        st.toast("Removed from saved restaurants.")
+    else:
+        save_restaurant_for_user(username, business_id)
+        _log_if_logged_in(business_id, "saved")
+        st.toast("Saved!")
+
+    st.session_state.saved_ids = get_saved_restaurant_ids(username)
+    st.rerun()
+
+
+def _handle_focus_map(business_id: str) -> None:
+    """
+    Move the selected restaurant into focus on the Discover page map.
+    """
+    _log_if_logged_in(business_id, "focus_map")
+
+    st.session_state.focus_business_id = business_id
+    st.session_state.jump_to_business_id = business_id
+    st.session_state.pending_discover_reset = True
+    st.session_state.page = "Discover"
+    st.rerun()
+
+
 def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
+    """
+    Render a single restaurant card and its action buttons.
+    """
     business_id = restaurant.get("business_id", "")
     name = clean_text(restaurant.get("name", "Unknown"))
     categories = " · ".join(restaurant.get("categories", [])[:3]) or "Restaurant"
@@ -108,7 +157,11 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
             f"alt='{html.escape(name, quote=True)}' class='nb-card-image'/>"
         )
     else:
-        image_html = "<div class='nb-card-image nb-card-image-placeholder'></div>"
+        image_html = """
+        <div class='nb-card-image nb-card-image-placeholder'>
+          <div class='nb-card-image-fallback'>Image unavailable</div>
+        </div>
+        """
 
     st.markdown(
         f"""
@@ -125,7 +178,9 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
               </div>
               <div class="nb-card-meta">{html.escape(meta)}</div>
               <div class="nb-card-address">{html.escape(address)}</div>
-              <div class="nb-card-review">{html.escape(review_text) if review_text else "No review snippet available."}</div>
+              <div class="nb-card-review">
+                {html.escape(review_text) if review_text else "No review snippet available."}
+              </div>
             </div>
           </div>
         </div>
@@ -144,30 +199,23 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
         key=f"{key_prefix}_save_{business_id}",
         use_container_width=True,
     ):
-        if already_saved:
-            st.session_state.saved_ids = [x for x in saved_ids if x != business_id]
-        else:
-            st.session_state.saved_ids = saved_ids + [business_id]
-            st.toast("Saved!")
-        st.rerun()
+        _handle_save_toggle(business_id, already_saved, saved_ids)
 
     if row1[1].button(
         "Focus map",
         key=f"{key_prefix}_focus_{business_id}",
         use_container_width=True,
     ):
-        st.session_state.focus_business_id = business_id
-        st.session_state.jump_to_business_id = business_id
-        st.session_state.pending_discover_reset = True
-        st.session_state.page = "Discover"
-        st.rerun()
+        _handle_focus_map(business_id)
 
     if row2[0].button(
         "Comments",
         key=f"{key_prefix}_comments_{business_id}",
         use_container_width=True,
     ):
-        show_comments_dialog(name, restaurant.get("google_reviews", []))
+        _log_if_logged_in(business_id, "comments_opened")
+        open_comments_modal(name, restaurant.get("google_reviews", []))
+        st.rerun()
 
     url = clean_text(restaurant.get("url", ""))
     if url:

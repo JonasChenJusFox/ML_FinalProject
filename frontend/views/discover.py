@@ -8,6 +8,7 @@ Responsibilities:
 - Applies query-based and structured frontend filtering
 - Supports focus-map behavior and result reordering
 - Controls how many restaurant cards are shown at once
+- Logs viewed restaurant cards for wrapped-style personalization
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from frontend.components.empty_state import render_empty_state
 from frontend.components.location_picker import render_location_picker
 from frontend.components.map_view import render_map
 from frontend.components.restaurant_card import render_restaurant_card
+from integration.wrapped_repo import log_user_interaction
 
 
 SHOW_OPTIONS = [12, 24, 36, 48, "All"]
@@ -101,6 +103,15 @@ def _initialize_discover_state() -> None:
         st.session_state.discover_show_count = 24
 
 
+def _init_discover_view_state() -> None:
+    """
+    Track which restaurant cards have already been logged as viewed
+    in the current app session, so we do not spam MongoDB on every rerun.
+    """
+    if "discover_viewed_ids" not in st.session_state:
+        st.session_state.discover_viewed_ids = []
+
+
 def _apply_pending_reset() -> None:
     if st.session_state.get("pending_discover_reset", False):
         st.session_state.discover_query = ""
@@ -113,10 +124,45 @@ def _apply_pending_reset() -> None:
         st.session_state.pending_discover_reset = False
 
 
+def _log_discover_views(restaurants: list[dict]) -> None:
+    """
+    Log 'viewed' interactions for restaurants currently rendered in Discover.
+    Only logs for logged-in users and only once per business_id per session.
+    """
+    if not st.session_state.get("is_logged_in", False):
+        return
+
+    current_user = st.session_state.get("current_user", {})
+    username = current_user.get("username", "")
+    if not username:
+        return
+
+    already_logged = set(st.session_state.get("discover_viewed_ids", []))
+    newly_logged: list[str] = []
+
+    for item in restaurants:
+        business_id = item.get("business_id")
+        if not business_id:
+            continue
+
+        if business_id in already_logged:
+            continue
+
+        log_user_interaction(username, business_id, "viewed")
+        newly_logged.append(business_id)
+
+    if newly_logged:
+        st.session_state.discover_viewed_ids = list(already_logged.union(newly_logged))
+
+
 def render_discover(restaurants: list[dict]) -> None:
+    """
+    Render the Discover page with filters, map, and restaurant cards.
+    """
     # Important: clear pending reset BEFORE any widget is created
     _apply_pending_reset()
     _initialize_discover_state()
+    _init_discover_view_state()
 
     normalized = normalize_results(restaurants or [])
     filter_options = st.session_state.get("filter_options", {})
@@ -182,6 +228,7 @@ def render_discover(restaurants: list[dict]) -> None:
             st.session_state.discover_prices = []
             st.session_state.discover_min_rating = 4.0
             st.session_state.discover_radius_minutes = 30
+            st.session_state.discover_viewed_ids = []
             st.rerun()
 
     filtered = [
@@ -249,8 +296,12 @@ def render_discover(restaurants: list[dict]) -> None:
 
         show_value = st.session_state.get("discover_show_count", 24)
         display_count = len(ordered) if show_value == "All" else int(show_value)
+        visible_results = ordered[:display_count]
+
+        # Only log what is actually shown on the page
+        _log_discover_views(visible_results)
 
         cols = st.columns(2, gap="large")
-        for idx, item in enumerate(ordered[:display_count]):
+        for idx, item in enumerate(visible_results):
             with cols[idx % 2]:
                 render_restaurant_card(item, key_prefix=f"discover_{idx}")

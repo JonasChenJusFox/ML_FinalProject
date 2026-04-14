@@ -1,4 +1,8 @@
-# 🍜 NearBite — Personalized NYC Restaurant Discovery
+<p align="center">
+  <img src="frontend/assets/nearbite.svg" alt="NearBite Logo" width="140"/>
+</p>
+
+# NearBite — Personalized NYC Restaurant Discovery
 
 > Find your next favorite spot — by vibe, not just by stars.
 
@@ -13,13 +17,16 @@ NearBite is a semantic restaurant discovery app for New York City. Unlike tradit
 | Yue Li | Data pipeline & preprocessing |
 | Fidaa Abdulkareem | Semantic retrieval & embeddings |
 | Albee Zhou | Ranking algorithm & personalization |
-| Jonas Chen | Frontend (Streamlit UI) |
+| Jonas Chen | Frontend, authentication, MongoDB integration, recommendation algorithm |
 | Nick Sidoti | Integration, infra & documentation |
 
 ---
 
 ## Features
 
+- **User Authentication** — Sign up, log in, log out, and password reset flow
+- **Questionnaire-Based Recommendations** — Personalized top restaurant suggestions based on onboarding answers
+- **Saved Restaurants** — Logged-in users can save restaurants to their profile
 - **Semantic Search** — Type natural language queries; the system matches your intent using sentence embeddings
 - **Structured Filters** — Narrow by cuisine, price range ($–$$$$$), dietary restrictions, rating, neighborhood, and more
 - **Personalized Ranking** — Results ranked by a combination of semantic relevance and your interaction history
@@ -30,39 +37,42 @@ NearBite is a semantic restaurant discovery app for New York City. Unlike tradit
 
 ## Repo Structure
 
-```
+```text
 nearbite/
 │
-├── app.py                        # Streamlit entry point
-├── requirements.txt              # Python dependencies
-├── README.md                     # Project documentation and setup instructions
-├── .env.example                  # Environment variable template
+├── app.py                              # Streamlit entry point
+├── requirements.txt                    # Python dependencies
+├── README.md                           # Project documentation and setup instructions
+├── .env.example                        # Environment variable template
 │
 ├── data/
-│   ├── pipeline.py               # Data ingestion, cleaning, user history (Yue)
+│   ├── pipeline.py                     # Data ingestion, cleaning, and restaurant dataset loading (Yue)
 │   └── __init__.py
 │
 ├── embeddings/
-│   ├── vectorizer.py             # Embedding model, query vectorization, cosine similarity (Fidaa)
+│   ├── vectorizer.py                   # Embedding model, query vectorization, cosine similarity (Fidaa)
+│   ├── location_aware_vector_search.py # Location-aware semantic retrieval experiments
 │   └── __init__.py
 │
 ├── recommendation/
-│   ├── ranker.py                 # Filtering, ranking score, content-based recs (Albee)
+│   ├── algorithm.py                    # Sample: Questionnaire + wrapped-based recommendation algorithm (Jonas)
 │   └── __init__.py
 │
 ├── frontend/
 │   ├── __init__.py
-│   ├── ui.py                     # Main app router
-│   ├── theme.py                  # CSS/theme injection
-│   ├── state.py                  # Session state defaults
-│   ├── adapters.py               # Frontend data shaping helpers
+│   ├── ui.py                           # Main app router and global modal rendering
+│   ├── theme.py                        # CSS/theme injection
+│   ├── state.py                        # Session state defaults for app UI
+│   ├── auth.py                         # Login, signup, logout, forgot-password state logic
+│   ├── user_profile_state.py           # Questionnaire/profile session state + DB sync
+│   ├── adapters.py                     # Frontend data normalization and shaping helpers
 │   │
 │   ├── views/
 │   │   ├── __init__.py
 │   │   ├── home.py
-│   │   ├── discover.py
-│   │   ├── profile.py
-│   │   └── wrapped.py
+│   │   ├── discover.py                 # Search, filtering, map, restaurant browsing
+│   │   ├── profile.py                  # Wrapped summary + saved restaurants + recommendation entry
+│   │   └── recommendation.py           # Questionnaire flow + personalized recommendations
 │   │
 │   ├── components/
 │   │   ├── __init__.py
@@ -71,31 +81,37 @@ nearbite/
 │   │   ├── map_view.py
 │   │   ├── location_picker.py
 │   │   ├── profile_form.py
-│   │   ├── restaurant_card.py
+│   │   ├── onboarding_form.py          # User onboarding questionnaire form
+│   │   ├── restaurant_card.py          # Restaurant result card with save/focus/comments actions
+│   │   ├── comments_modal.py           # Global comments dialog
+│   │   ├── login_modal.py              # Log in modal
+│   │   ├── signup_modal.py             # Sign up modal
+│   │   ├── forgot_password_modal.py    # Password reset modal
 │   │   ├── wrapped_card.py
 │   │   └── empty_state.py
 │   │
 │   └── assets/
 │       ├── custom.css
 │       ├── nearbite.svg
-│       └── nearbite.png          # optional page/tab icon
+│       └── nearbite.png                # Optional page/tab icon
 │
 ├── integration/
-│   ├── api.py                    # Glue layer: orchestrates the full search pipeline (Nick)
-│   └── __init__.py
+│   ├── __init__.py
+│   ├── api.py                          # Glue layer: orchestrates search pipeline (Nick)
+│   ├── db.py                           # MongoDB connection setup
+│   ├── user_repo.py                    # MongoDB user accounts + questionnaire profile storage
+│   ├── interaction_repo.py             # Saved restaurant persistence
+│   └── wrapped_repo.py                 # User interaction logging + wrapped summary generation
 │
 ├── config/
-│   ├── settings.py               # Environment variables and app-wide constants (Nick)
+│   ├── settings.py                     # Environment variables and app-wide constants (Nick)
 │   └── __init__.py
 │
 └── tests/
     ├── test_pipeline.py
     ├── test_vectorizer.py
-    ├── test_ranker.py
-    └── test_api.py
-```
-
----
+    ├── test_api.py
+    └── test_algorithm.py               
 
 ## Setup
 
@@ -125,7 +141,7 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env and add your Yelp API key and database URL
+# Edit .env and add your MongoDB database username and key
 ```
 
 ### 5. Run the app
@@ -199,7 +215,7 @@ Personalized Ranking         ← recommendation/ranker.py
 
 - **Frontend**: Streamlit
 - **Backend / API**: Python (Flask integration layer planned)
-- **Database**: PostgreSQL + pgvector extension
+- **Database**: MongoDB Atlas
 - **Embeddings**: sentence-transformers (`all-MiniLM-L6-v2`)
 - **Hosting**: DigitalOcean
 - **Design**: Figma ([view mockup](https://www.figma.com/design/zUGZE1xR7Cmf2L2Rhprhge/NearBiteWithIcon))

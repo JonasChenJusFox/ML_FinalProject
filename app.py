@@ -18,7 +18,7 @@ except Exception:
 
 
 ICON_PATH = Path("frontend/assets/nearbite.png")
-FINAL_DATASET_PATH = Path("data/restaurants_with_google_reviews_final.json")
+FINAL_DATASET_PATH = Path("data/restaurants.json")
 
 page_icon = Image.open(ICON_PATH) if ICON_PATH.exists() else "🍽️"
 

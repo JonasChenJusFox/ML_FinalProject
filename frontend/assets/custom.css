@@ -4,7 +4,7 @@ Owner: Jonas Chen
 
 Responsibilities:
 - Defines the custom visual style for the NearBite Streamlit app
-- Controls layout, typography, spacing, buttons, cards, and navigation appearance
+- Controls layout, typography, spacing, buttons, cards, dialogs, and navigation appearance
 - Applies NearBite branding, color palette, and responsive adjustments
 - Overrides default Streamlit styling to create a more polished product UI
 */
@@ -44,20 +44,14 @@ section {
   color: var(--nb-text) !important;
 }
 
-/* kill default dark streamlit chrome */
+/* kill default Streamlit chrome */
 header[data-testid="stHeader"] {
   background: transparent !important;
   height: 0 !important;
 }
 
-div[data-testid="stToolbar"] {
-  display: none !important;
-}
-
-div[data-testid="stDecoration"] {
-  display: none !important;
-}
-
+div[data-testid="stToolbar"],
+div[data-testid="stDecoration"],
 div[data-testid="stStatusWidget"] {
   display: none !important;
 }
@@ -93,33 +87,45 @@ hr {
 }
 
 /* =========================================================
-   Sticky top bar
+   Shell
    ========================================================= */
 
-div[data-testid="stVerticalBlock"]:has(.nb-topbar-marker),
-div[data-testid="stVerticalBlock"]:has(.nb-topbar-anchor) {
-  position: sticky;
-  top: 0;
-  z-index: 999;
-  background: rgba(247, 244, 239, 0.97) !important;
-  backdrop-filter: blur(8px);
-  padding: 0.15rem 0 0.55rem 0;
-}
-
-.nb-topbar-marker,
-.nb-topbar-anchor {
-  height: 1px;
+.nb-shell {
+  padding-top: 0.15rem;
 }
 
 /* =========================================================
-   Logo lockup
+   Standard top nav
+   ========================================================= */
+
+.nb-topbar-standard {
+  margin-bottom: 1rem;
+}
+
+.nb-nav-menu-panel {
+  max-width: 360px;
+  margin-top: 0.75rem;
+  margin-left: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--nb-border);
+  background: #fffdfa;
+  box-shadow: var(--nb-shadow);
+}
+
+.nb-nav-user-label {
+  margin-bottom: 0.8rem;
+  color: var(--nb-text);
+  line-height: 1.45;
+}
+
+/* =========================================================
+   Logo / brand
    ========================================================= */
 
 .nb-logo-lockup {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  min-height: 88px;
+  gap: 0.9rem;
 }
 
 .nb-logo-img {
@@ -153,60 +159,6 @@ div[data-testid="stVerticalBlock"]:has(.nb-topbar-anchor) {
   line-height: 1.35;
   color: var(--nb-muted) !important;
   margin-top: 0.22rem;
-}
-
-/* =========================================================
-   Segmented nav
-   ========================================================= */
-
-div[data-testid="stSegmentedControl"] {
-  width: 100%;
-}
-
-div[data-testid="stSegmentedControl"] [role="radiogroup"] {
-  width: 100%;
-  display: grid !important;
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
-  gap: 0.85rem;
-  background: transparent !important;
-  border: 0 !important;
-  padding: 0 !important;
-}
-
-div[data-testid="stSegmentedControl"] label {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  min-height: 50px !important;
-  border-radius: var(--nb-radius) !important;
-  border: 1px solid var(--nb-border) !important;
-  background: rgba(255, 253, 249, 0.92) !important;
-  color: var(--nb-text) !important;
-  box-shadow: none !important;
-  transition: 160ms ease;
-}
-
-div[data-testid="stSegmentedControl"] label:hover {
-  border-color: var(--nb-accent) !important;
-  color: var(--nb-accent-strong) !important;
-}
-
-div[data-testid="stSegmentedControl"] label[data-checked="true"] {
-  background: var(--nb-accent) !important;
-  border-color: var(--nb-accent) !important;
-  color: #fff !important;
-}
-
-div[data-testid="stSegmentedControl"] label span {
-  font-weight: 600 !important;
-}
-
-/* =========================================================
-   Shell
-   ========================================================= */
-
-.nb-shell {
-  padding-top: 0.15rem;
 }
 
 /* =========================================================
@@ -347,6 +299,17 @@ div[data-testid="stSegmentedControl"] label span {
   background: linear-gradient(180deg, #ebe2d8 0%, #ddd2c8 100%) !important;
 }
 
+.nb-card-image-placeholder {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  color: #7d746b;
+}
+
+.nb-card-image-fallback {
+  font-size: 0.95rem;
+}
+
 .nb-card-body {
   padding: 1rem;
 }
@@ -406,13 +369,19 @@ div[data-testid="stSegmentedControl"] label span {
 }
 
 .nb-wrap-card {
+  min-height: 120px;
   padding: 1rem;
+  border: 1px solid var(--nb-border);
+  background: #fffdfa;
+  box-shadow: var(--nb-shadow);
 }
 
 .nb-wrap-value {
-  font-size: 1.3rem;
-  font-weight: 700;
+  margin-top: 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 600;
   color: var(--nb-text);
+  line-height: 1.4;
 }
 
 .nb-wrap-restaurant {
@@ -436,6 +405,15 @@ div[data-testid="stSegmentedControl"] label span {
    Inputs
    ========================================================= */
 
+label,
+.stSelectbox label,
+.stMultiSelect label,
+.stTextInput label,
+div[data-testid="stWidgetLabel"] label,
+div[data-testid="stMarkdownContainer"] p {
+  color: var(--nb-text) !important;
+}
+
 div[data-testid="stTextInput"] > div > div,
 div[data-testid="stSelectbox"] > div > div,
 div[data-testid="stMultiSelect"] > div > div {
@@ -450,8 +428,11 @@ div[data-testid="stMultiSelect"] div[data-baseweb="select"] {
   border-radius: var(--nb-radius) !important;
 }
 
-div[data-testid="stTextInput"] input::placeholder {
+div[data-testid="stTextInput"] input::placeholder,
+input::placeholder,
+textarea::placeholder {
   color: #8e857b !important;
+  opacity: 1 !important;
 }
 
 div[data-testid="stTextInput"] input:focus,
@@ -468,38 +449,64 @@ div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
   border-color: var(--nb-border) !important;
 }
 
-div[data-testid="stSelectbox"] svg,
-div[data-testid="stMultiSelect"] svg {
-  fill: var(--nb-text) !important;
+div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
+  background: var(--nb-accent) !important;
+  color: #fff !important;
+  border: 0 !important;
 }
 
-/* dropdown menu */
-div[data-baseweb="popover"] {
+div[data-testid="stMultiSelect"] [data-baseweb="tag"] span {
+  color: #fff !important;
+}
+
+div[data-testid="stSelectbox"] svg,
+div[data-testid="stMultiSelect"] svg,
+div[data-testid="stMultiSelect"] [data-baseweb="tag"] svg {
+  fill: var(--nb-text) !important;
+  color: var(--nb-text) !important;
+}
+
+div[data-testid="stMultiSelect"] [data-baseweb="tag"] svg {
+  fill: #fff !important;
+  color: #fff !important;
+}
+
+div[data-baseweb="popover"],
+div[role="listbox"],
+ul[role="listbox"] {
   background: #fffdfa !important;
   color: var(--nb-text) !important;
   border: 1px solid var(--nb-border) !important;
   box-shadow: var(--nb-shadow) !important;
 }
 
-div[role="listbox"] {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
-}
-
-div[role="option"] {
+div[role="option"],
+li[role="option"] {
   background: #fffdfa !important;
   color: var(--nb-text) !important;
 }
 
-div[role="option"]:hover {
+div[role="option"]:hover,
+li[role="option"]:hover {
   background: var(--nb-accent-soft) !important;
   color: var(--nb-text) !important;
 }
 
-div[role="option"][aria-selected="true"] {
+div[role="option"][aria-selected="true"],
+li[role="option"][aria-selected="true"] {
   background: var(--nb-accent-soft) !important;
   color: var(--nb-accent-strong) !important;
+}
+
+div[data-testid="stSelectbox"] [data-baseweb="select"] *,
+div[data-testid="stMultiSelect"] [data-baseweb="select"] * {
+  color: var(--nb-text) !important;
+}
+
+div[data-testid="stSelectbox"] [data-baseweb="select"] input,
+div[data-testid="stMultiSelect"] [data-baseweb="select"] input {
+  background: transparent !important;
+  color: var(--nb-text) !important;
 }
 
 /* =========================================================
@@ -507,6 +514,7 @@ div[role="option"][aria-selected="true"] {
    ========================================================= */
 
 div[data-testid="stButton"] > button,
+div[data-testid="stFormSubmitButton"] > button,
 div[data-testid="stLinkButton"] a {
   width: 100%;
   min-height: var(--nb-button-h) !important;
@@ -519,30 +527,187 @@ div[data-testid="stLinkButton"] a {
   padding: 0 0.8rem !important;
   line-height: 1.2 !important;
   font-weight: 500 !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
 }
 
 div[data-testid="stButton"] > button:hover,
+div[data-testid="stFormSubmitButton"] > button:hover,
 div[data-testid="stLinkButton"] a:hover {
+  background: #fff7f2 !important;
   border-color: var(--nb-accent) !important;
   color: var(--nb-accent-strong) !important;
 }
 
-div[data-testid="stButton"] > button[kind="primary"] {
+div[data-testid="stButton"] > button[kind="primary"],
+div[data-testid="stButton"] button[data-testid="baseButton-primary"],
+div[data-testid="stFormSubmitButton"] > button[kind="primary"],
+div[data-testid="stFormSubmitButton"] button[data-testid="baseButton-primary"] {
   background: var(--nb-accent) !important;
   border-color: var(--nb-accent) !important;
   color: #fff !important;
 }
 
+div[data-testid="stButton"] > button:disabled,
+div[data-testid="stFormSubmitButton"] > button:disabled {
+  background: #ebe6df !important;
+  color: #5f574f !important;
+  border-color: var(--nb-border) !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: #5f574f !important;
+}
+
+div[data-testid="stButton"] > button *,
+div[data-testid="stFormSubmitButton"] > button * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
 /* =========================================================
-   Dialog / popover readability
+   Alerts / toast / status
    ========================================================= */
 
-div[role="dialog"] {
+div[data-testid="stToast"] {
+  background: #fffdfa !important;
+  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-border) !important;
+  box-shadow: var(--nb-shadow) !important;
+}
+
+div[data-testid="stToast"] * {
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[data-testid="stAlert"] {
+  background: #fffdfa !important;
+  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-border) !important;
+  box-shadow: none !important;
+}
+
+div[data-testid="stAlert"] * {
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[data-testid="stAlert"][kind="success"] {
+  border-left: 4px solid #6aa56a !important;
+}
+
+div[data-testid="stAlert"][kind="info"] {
+  border-left: 4px solid #6a8fd9 !important;
+}
+
+div[data-testid="stAlert"][kind="warning"] {
+  border-left: 4px solid #d9a25f !important;
+}
+
+div[data-testid="stAlert"][kind="error"] {
+  border-left: 4px solid #d96558 !important;
+}
+
+div[data-testid="stSpinner"] {
   color: var(--nb-text) !important;
 }
 
-div[role="dialog"] * {
-  color: inherit !important;
+div[data-testid="stSpinner"] * {
+  color: var(--nb-text) !important;
+}
+
+/* =========================================================
+   Dialog / modal
+   ========================================================= */
+
+div[role="dialog"]::backdrop {
+  background: rgba(20, 18, 16, 0.28) !important;
+}
+
+div[role="dialog"] {
+  background: #fffdfa !important;
+  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-border) !important;
+  box-shadow: 0 16px 40px rgba(31, 28, 25, 0.14) !important;
+  overflow-x: hidden !important;
+}
+
+div[role="dialog"] > div,
+div[role="dialog"] [data-testid="stVerticalBlock"],
+div[role="dialog"] [data-testid="stMarkdownContainer"],
+div[role="dialog"] [data-testid="stTextInput"],
+div[role="dialog"] [data-testid="stButton"] {
+  background: transparent !important;
+  color: var(--nb-text) !important;
+}
+
+div[role="dialog"] h1,
+div[role="dialog"] h2,
+div[role="dialog"] h3,
+div[role="dialog"] p,
+div[role="dialog"] label,
+div[role="dialog"] span,
+div[role="dialog"] div {
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[role="dialog"] input {
+  background: #fffdfa !important;
+  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-border) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[role="dialog"] input::placeholder {
+  color: #8e857b !important;
+  opacity: 1 !important;
+}
+
+div[role="dialog"] svg {
+  fill: var(--nb-text) !important;
+  color: var(--nb-text) !important;
+}
+
+div[role="dialog"] button {
+  background: #fffdfa !important;
+  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-border) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[role="dialog"] button:hover {
+  border-color: var(--nb-accent) !important;
+  color: var(--nb-accent-strong) !important;
+}
+
+div[role="dialog"] button[aria-label="Close"] {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--nb-text) !important;
+}
+
+div[role="dialog"] .stMarkdown,
+div[role="dialog"] [data-testid="stMarkdownContainer"],
+div[role="dialog"] p,
+div[role="dialog"] div,
+div[role="dialog"] em,
+div[role="dialog"] strong,
+div[role="dialog"] span {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.nb-comment-text {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  line-height: 1.65;
+  max-width: 100%;
+}
+
+div[role="dialog"] [data-testid="stVerticalBlock"] {
+  max-width: 100%;
 }
 
 /* =========================================================
@@ -613,10 +778,6 @@ iframe[title="st_folium"] {
     font-size: 1.3rem !important;
   }
 
-  div[data-testid="stSegmentedControl"] [role="radiogroup"] {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   .nb-hero-panel {
     margin: 1.3rem;
     padding: 1.3rem;
@@ -645,10 +806,6 @@ iframe[title="st_folium"] {
     font-size: 0.92rem;
   }
 
-  div[data-testid="stSegmentedControl"] [role="radiogroup"] {
-    gap: 0.65rem;
-  }
-
   .nb-hero-html {
     min-height: 360px;
   }
@@ -666,235 +823,4 @@ iframe[title="st_folium"] {
   .nb-card-image-placeholder {
     height: 210px !important;
   }
-}
-
-/* =========================================================
-   Patch: multiselect / select / button contrast fixes
-   ========================================================= */
-
-/* labels above inputs */
-label,
-.stSelectbox label,
-.stMultiSelect label,
-.stTextInput label,
-div[data-testid="stWidgetLabel"] label,
-div[data-testid="stMarkdownContainer"] p {
-  color: var(--nb-text) !important;
-}
-
-/* placeholder text */
-input::placeholder,
-textarea::placeholder {
-  color: #8e857b !important;
-  opacity: 1 !important;
-}
-
-/* multiselect closed control */
-div[data-testid="stMultiSelect"] [data-baseweb="select"] {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
-}
-
-div[data-testid="stMultiSelect"] [data-baseweb="select"] > div {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-}
-
-/* multiselect selected chips */
-div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
-  background: var(--nb-accent) !important;
-  color: #fff !important;
-  border: 0 !important;
-}
-
-div[data-testid="stMultiSelect"] [data-baseweb="tag"] span {
-  color: #fff !important;
-}
-
-div[data-testid="stMultiSelect"] [data-baseweb="tag"] svg {
-  fill: #fff !important;
-}
-
-/* dropdown surface */
-div[data-baseweb="popover"],
-div[role="listbox"],
-ul[role="listbox"] {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
-  box-shadow: var(--nb-shadow) !important;
-}
-
-/* dropdown options */
-div[role="option"],
-li[role="option"] {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-}
-
-div[role="option"]:hover,
-li[role="option"]:hover {
-  background: var(--nb-accent-soft) !important;
-  color: var(--nb-text) !important;
-}
-
-div[role="option"][aria-selected="true"],
-li[role="option"][aria-selected="true"] {
-  background: var(--nb-accent-soft) !important;
-  color: var(--nb-accent-strong) !important;
-}
-
-/* dark inner value box that BaseWeb sometimes injects */
-div[data-testid="stSelectbox"] [data-baseweb="select"] *,
-div[data-testid="stMultiSelect"] [data-baseweb="select"] * {
-  color: var(--nb-text) !important;
-}
-
-div[data-testid="stSelectbox"] [data-baseweb="select"] input,
-div[data-testid="stMultiSelect"] [data-baseweb="select"] input {
-  background: transparent !important;
-  color: var(--nb-text) !important;
-}
-
-/* clear / dropdown icons */
-div[data-testid="stSelectbox"] svg,
-div[data-testid="stMultiSelect"] svg {
-  fill: var(--nb-text) !important;
-  color: var(--nb-text) !important;
-}
-
-/* buttons */
-div[data-testid="stButton"] > button {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
-}
-
-div[data-testid="stButton"] > button:hover {
-  color: var(--nb-accent-strong) !important;
-  border-color: var(--nb-accent) !important;
-}
-
-/* primary-looking buttons sometimes still get dark backgrounds */
-div[data-testid="stButton"] button[kind="primary"],
-div[data-testid="stButton"] button[data-testid="baseButton-primary"] {
-  background: var(--nb-accent) !important;
-  color: #fff !important;
-  border-color: var(--nb-accent) !important;
-}
-
-/* disabled button text still visible */
-div[data-testid="stButton"] > button:disabled {
-  background: #f2ece5 !important;
-  color: #8e857b !important;
-  border-color: var(--nb-border) !important;
-  opacity: 1 !important;
-}
-
-/* =========================================================
-   Patch: save button visibility
-   ========================================================= */
-
-/* all buttons: force readable text */
-div[data-testid="stButton"] > button,
-div[data-testid="stFormSubmitButton"] > button {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
-  opacity: 1 !important;
-  text-shadow: none !important;
-}
-
-/* hover */
-div[data-testid="stButton"] > button:hover,
-div[data-testid="stFormSubmitButton"] > button:hover {
-  background: #fff7f2 !important;
-  color: var(--nb-accent-strong) !important;
-  border-color: var(--nb-accent) !important;
-}
-
-/* primary buttons */
-div[data-testid="stButton"] > button[kind="primary"],
-div[data-testid="stButton"] button[data-testid="baseButton-primary"],
-div[data-testid="stFormSubmitButton"] > button[kind="primary"],
-div[data-testid="stFormSubmitButton"] button[data-testid="baseButton-primary"] {
-  background: var(--nb-accent) !important;
-  color: #ffffff !important;
-  border-color: var(--nb-accent) !important;
-}
-
-/* disabled buttons: still readable */
-div[data-testid="stButton"] > button:disabled,
-div[data-testid="stFormSubmitButton"] > button:disabled {
-  background: #ebe6df !important;
-  color: #5f574f !important;
-  border-color: var(--nb-border) !important;
-  opacity: 1 !important;
-  -webkit-text-fill-color: #5f574f !important;
-}
-
-/* inner span text */
-div[data-testid="stButton"] > button *,
-div[data-testid="stFormSubmitButton"] > button * {
-  color: inherit !important;
-  -webkit-text-fill-color: inherit !important;
-}
-
-/* =========================================================
-   Patch: toast / success / info / warning visibility
-   ========================================================= */
-
-/* toast container */
-div[data-testid="stToast"] {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
-  box-shadow: var(--nb-shadow) !important;
-}
-
-/* toast inner text */
-div[data-testid="stToast"] * {
-  color: var(--nb-text) !important;
-  -webkit-text-fill-color: var(--nb-text) !important;
-}
-
-/* alert boxes: success / info / warning / error */
-div[data-testid="stAlert"] {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
-  box-shadow: none !important;
-}
-
-div[data-testid="stAlert"] * {
-  color: var(--nb-text) !important;
-  -webkit-text-fill-color: var(--nb-text) !important;
-}
-
-/* optional: different left accent for each alert type */
-div[data-testid="stAlert"][kind="success"] {
-  border-left: 4px solid #6aa56a !important;
-}
-
-div[data-testid="stAlert"][kind="info"] {
-  border-left: 4px solid #6a8fd9 !important;
-}
-
-div[data-testid="stAlert"][kind="warning"] {
-  border-left: 4px solid #d9a25f !important;
-}
-
-div[data-testid="stAlert"][kind="error"] {
-  border-left: 4px solid #d96558 !important;
-}
-
-/* spinner / status text */
-div[data-testid="stStatusWidget"],
-div[data-testid="stSpinner"] {
-  color: var(--nb-text) !important;
-}
-
-div[data-testid="stSpinner"] * {
-  color: var(--nb-text) !important;
 }

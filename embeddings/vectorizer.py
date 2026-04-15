@@ -3,24 +3,32 @@
 embeddings/vectorizer.py
 Owner: Fidaa
 
-Embedding and retrieval vectorizer for restaurant data.
+Core embedding utilities for the restaurant discovery pipeline.
 
-This module provides core embedding and similarity search functionality.
-It expects restaurant dicts with a 'document' field (semantic text representation).
+Provides low-level embedding and similarity functions used across all modules.
+All embeddings are 384-dimensional normalized vectors.
+
+NOTE: All modules (vectorizer, build_index, cluster_retrieval, user modeling)
+must use the same model to ensure embedding spaces are compatible.
+Default model: multi-qa-MiniLM-L6-cos-v1 (fine-tuned for asymmetric retrieval).
 """
 
 from sentence_transformers import SentenceTransformer
 
 
+# NOTE: This cache assumes a single model is used across the entire pipeline.
+# Calling get_embedding_model() with a different model_name after the first
+# call will silently return the originally loaded model.
 _model_cache = None
 
 
-def get_embedding_model(model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+def get_embedding_model(model_name: str = "multi-qa-MiniLM-L6-cos-v1") -> SentenceTransformer:
     """Load and cache the SentenceTransformer embedding model.
-    
+
     Args:
         model_name: Name of the SentenceTransformer model to use.
-        
+                    All modules must use the same model name.
+
     Returns:
         Loaded SentenceTransformer model instance.
     """
@@ -30,60 +38,23 @@ def get_embedding_model(model_name: str = "sentence-transformers/all-MiniLM-L6-v
     return _model_cache
 
 
-def _append_review_snippets(
-    document: str,
-    google_reviews,
-    max_reviews: int = 3,
-    review_char_limit: int = 300,
-) -> str:
-    """Append capped review snippets to a base document string."""
-    if not isinstance(document, str):
-        document = ""
-
-    snippets = []
-    if isinstance(google_reviews, list):
-        for review in google_reviews:
-            review_text = ""
-
-            if isinstance(review, str):
-                review_text = review.strip()
-            elif isinstance(review, dict):
-                for key in ("text", "review_text", "content", "snippet"):
-                    value = review.get(key)
-                    if isinstance(value, str) and value.strip():
-                        review_text = value.strip()
-                        break
-
-            if not review_text:
-                continue
-
-            snippets.append(review_text[:review_char_limit])
-            if len(snippets) >= max_reviews:
-                break
-
-    if not snippets:
-        return document.strip()
-
-    return f"{document.strip()}\n\nReview snippets: {' | '.join(snippets)}"
-
-
 def embed_restaurant(restaurant: dict) -> list[float]:
-    """Embed a restaurant record.
-    
+    """Embed a restaurant record into a normalized vector.
+
+    Uses the 'embedding_text' field, which contains a natural language summary
+    of the restaurant including cuisine, price, rating, and sentiment analysis
+    of food, service, and atmosphere derived from reviews.
+
     Args:
-        restaurant: Restaurant dict with a base 'document' field and optional
-            'google_reviews' list.
-        
+        restaurant: Restaurant dict with an 'embedding_text' field.
+
     Returns:
-        List of floats representing the normalized embedding vector (384-dimensional).
+        384-dimensional normalized embedding vector as a list of floats.
     """
     model = get_embedding_model()
-    
-    # Start from the existing document and append capped review snippets.
-    document = restaurant.get("document", "")
-    document = _append_review_snippets(document, restaurant.get("google_reviews", []))
-    
-    # Encode with normalization
+
+    document = restaurant["embedding_text"]
+
     vector = model.encode(
         document,
         normalize_embeddings=True,
@@ -93,13 +64,13 @@ def embed_restaurant(restaurant: dict) -> list[float]:
 
 
 def embed_query(query: str) -> list[float]:
-    """Embed a user query string.
-    
+    """Embed a user query string into a normalized vector.
+
     Args:
         query: User query text.
-        
+
     Returns:
-        List of floats representing the normalized embedding vector (384-dimensional).
+        384-dimensional normalized embedding vector as a list of floats.
     """
     model = get_embedding_model()
     vector = model.encode(
@@ -110,15 +81,37 @@ def embed_query(query: str) -> list[float]:
     return vector.tolist()
 
 
-def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
-    """Compute cosine similarity between two vectors from scratch.
-    
+def embed_user(user_document: str) -> list[float]:
+    """Embed a user profile document into a normalized vector.
+
+    The user_document should be a natural language representation of the
+    user's preferences (constructed by the user modeling module).
+    Must use the same model as embed_restaurant() and embed_query().
+
     Args:
-        vec1: First vector (list of floats).
-        vec2: Second vector (list of floats).
-        
+        user_document: Natural language string capturing user preferences.
+
     Returns:
-        Cosine similarity score in range [0, 1] for normalized vectors.
+        384-dimensional normalized embedding vector as a list of floats.
+    """
+    model = get_embedding_model()
+    vector = model.encode(
+        user_document,
+        normalize_embeddings=True,
+        convert_to_numpy=True,
+    )
+    return vector.tolist()
+
+
+def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
+    """Compute cosine similarity between two normalized vectors.
+
+    Args:
+        vec1: First normalized vector (list of floats).
+        vec2: Second normalized vector (list of floats).
+
+    Returns:
+        Cosine similarity score. Returns 0.0 if either vector is zero.
     """
     dot_product = sum(v1 * v2 for v1, v2 in zip(vec1, vec2))
     norm_vec1 = sum(v ** 2 for v in vec1) ** 0.5
@@ -126,43 +119,3 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
     if norm_vec1 == 0 or norm_vec2 == 0:
         return 0.0
     return dot_product / (norm_vec1 * norm_vec2)
-
-
-def build_restaurant_index(restaurants: list[dict]) -> list[tuple[dict, list[float]]]:
-    """Build an index of restaurants with their embeddings.
-    
-    Args:
-        restaurants: List of restaurant dicts.
-        
-    Returns:
-        List of tuples (restaurant_dict, embedding_vector) for each restaurant.
-    """
-    index = []
-    for restaurant in restaurants:
-        embedding = embed_restaurant(restaurant)
-        index.append((restaurant, embedding))
-    return index
-
-
-def retrieve_top_k(
-    query_vector: list[float],
-    index: list[tuple[dict, list[float]]],
-    k: int,
-) -> list[tuple[dict, float]]:
-    """Retrieve top-k most similar restaurants for a query vector.
-    
-    Args:
-        query_vector: Embedding vector for user query.
-        index: Restaurant index from build_restaurant_index().
-        k: Number of top results to return.
-        
-    Returns:
-        List of tuples (restaurant_dict, similarity_score) sorted by score descending.
-    """
-    scored = []
-    for restaurant, embedding in index:
-        score = cosine_similarity(query_vector, embedding)
-        scored.append((restaurant, score))
-    
-    scored.sort(key=lambda item: item[1], reverse=True)
-    return scored[:k]

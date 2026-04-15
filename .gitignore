@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .env
 .venv/
 __pycache__/
@@ -9,3 +10,8 @@ node_modules/
 .pytest_cache/
 backup_local_changes/
 recovered_files/
+=======
+venv/
+__pycache__
+*.pyc
+>>>>>>> origin/ranking

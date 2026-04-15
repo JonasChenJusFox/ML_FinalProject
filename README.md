@@ -1,8 +1,12 @@
+<<<<<<< HEAD
 <p align="center">
   <img src="frontend/assets/nearbite.svg" alt="NearBite Logo" width="140"/>
 </p>
 
 # NearBite — Personalized NYC Restaurant Discovery
+=======
+# 🍜 NearBite — Personalized NYC Restaurant Discovery
+>>>>>>> origin/feature/frontend-final-clean2
 
 > Find your next favorite spot — by vibe, not just by stars.
 
@@ -17,16 +21,23 @@ NearBite is a semantic restaurant discovery app for New York City. Unlike tradit
 | Yue Li | Data pipeline & preprocessing |
 | Fidaa Abdulkareem | Semantic retrieval & embeddings |
 | Albee Zhou | Ranking algorithm & personalization |
+<<<<<<< HEAD
 | Jonas Chen | Frontend, authentication, MongoDB integration, recommendation algorithm |
+=======
+| Jonas Chen | Frontend (Streamlit UI) |
+>>>>>>> origin/feature/frontend-final-clean2
 | Nick Sidoti | Integration, infra & documentation |
 
 ---
 
 ## Features
 
+<<<<<<< HEAD
 - **User Authentication** — Sign up, log in, log out, and password reset flow
 - **Questionnaire-Based Recommendations** — Personalized top restaurant suggestions based on onboarding answers
 - **Saved Restaurants** — Logged-in users can save restaurants to their profile
+=======
+>>>>>>> origin/feature/frontend-final-clean2
 - **Semantic Search** — Type natural language queries; the system matches your intent using sentence embeddings
 - **Structured Filters** — Narrow by cuisine, price range ($–$$$$$), dietary restrictions, rating, neighborhood, and more
 - **Personalized Ranking** — Results ranked by a combination of semantic relevance and your interaction history
@@ -37,6 +48,7 @@ NearBite is a semantic restaurant discovery app for New York City. Unlike tradit
 
 ## Repo Structure
 
+<<<<<<< HEAD
 ```text
 nearbite/
 │
@@ -105,21 +117,66 @@ nearbite/
 │
 ├── config/
 │   ├── settings.py                     # Environment variables and app-wide constants (Nick)
+=======
+```
+nearbite/
+│
+├── app.py                        # Streamlit entry point
+├── requirements.txt              # Python dependencies
+├── README.md                     # Project documentation and setup instructions
+├── .env.example                  # Environment variable template
+│
+├── data/
+│   ├── pipeline.py               # Data ingestion, cleaning, user history (Yue)
+│   └── __init__.py
+│
+├── embeddings/
+│   ├── vectorizer.py             # Embedding model, query vectorization, cosine similarity (Fidaa)
+│   └── __init__.py
+│
+├── recommendation/
+│   ├── ranker.py                 # Filtering, ranking score, content-based recs (Albee)
+│   └── __init__.py
+│
+├── frontend/
+│   ├── ui.py                     # Streamlit UI components and layout (Jonas + Fidaa)
+│   └── __init__.py
+│
+├── integration/
+│   ├── api.py                    # Glue layer: orchestrates the full search pipeline (Nick)
+│   └── __init__.py
+│
+├── config/
+│   ├── settings.py               # Environment variables and app-wide constants (Nick)
+>>>>>>> origin/feature/frontend-final-clean2
 │   └── __init__.py
 │
 └── tests/
     ├── test_pipeline.py
     ├── test_vectorizer.py
+<<<<<<< HEAD
     ├── test_api.py
     └── test_algorithm.py               
+=======
+    ├── test_ranker.py
+    └── test_api.py
+```
+
+---
+>>>>>>> origin/feature/frontend-final-clean2
 
 ## Setup
 
 ### 1. Clone the repo
 
 ```bash
+<<<<<<< HEAD
 git clone https://github.com/JonasChenJusFox/ML_FinalProject.git
 cd ML_FinalProject
+=======
+git clone https://github.com/JonasChenJusFox/nearbite.git
+cd nearbite
+>>>>>>> origin/feature/frontend-final-clean2
 ```
 
 ### 2. Create and activate a virtual environment
@@ -133,7 +190,10 @@ venv\Scripts\activate         # Windows
 ### 3. Install dependencies
 
 ```bash
+<<<<<<< HEAD
 python3 -m pip install --upgrade pip
+=======
+>>>>>>> origin/feature/frontend-final-clean2
 pip install -r requirements.txt
 ```
 
@@ -141,7 +201,11 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
+<<<<<<< HEAD
 # Edit .env and add your MongoDB database username and key
+=======
+# Edit .env and add your Yelp API key and database URL
+>>>>>>> origin/feature/frontend-final-clean2
 ```
 
 ### 5. Run the app
@@ -215,7 +279,11 @@ Personalized Ranking         ← recommendation/ranker.py
 
 - **Frontend**: Streamlit
 - **Backend / API**: Python (Flask integration layer planned)
+<<<<<<< HEAD
 - **Database**: MongoDB Atlas
+=======
+- **Database**: PostgreSQL + pgvector extension
+>>>>>>> origin/feature/frontend-final-clean2
 - **Embeddings**: sentence-transformers (`all-MiniLM-L6-v2`)
 - **Hosting**: DigitalOcean
 - **Design**: Figma ([view mockup](https://www.figma.com/design/zUGZE1xR7Cmf2L2Rhprhge/NearBiteWithIcon))

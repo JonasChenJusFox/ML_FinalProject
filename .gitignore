@@ -1,17 +1,22 @@
-<<<<<<< HEAD
+# Environment files
 .env
 .venv/
+venv/
+
+# Python
 __pycache__/
 *.pyc
-.DS_Store
-.env
-*.log
-node_modules/
 .pytest_cache/
+
+# System files
+.DS_Store
+
+# Logs
+*.log
+
+# Node (just in case frontend uses it)
+node_modules/
+
+# Local backups / temp
 backup_local_changes/
 recovered_files/
-=======
-venv/
-__pycache__
-*.pyc
->>>>>>> origin/ranking

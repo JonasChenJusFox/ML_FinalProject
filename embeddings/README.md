@@ -26,7 +26,8 @@ python -m embeddings.cluster_retrieval --query "cozy japanese spot with great se
 - App-critical:
   - `vectorizer.py`: model loading, embedding helpers, cosine similarity.
   - `build_index.py`: offline embedding + clustering, writes retrieval files.
-  - `cluster_retrieval.py`: query-time candidate retrieval from those files.
+- Optional or integration-dependent:
+  - `cluster_retrieval.py`: query-time candidate retrieval from those files. May not be used if another teammate's retrieval implementation is integrated.
 - Investigation only:
   - `elbow.py`: elbow plot for selecting K.
 - Convenience:
@@ -107,21 +108,6 @@ python -m embeddings.elbow \
   --k-max 40 \
   --k-step 5
 ```
-
-## How Teammates Should Use This
-
-When the app starts (one time):
-```python
-index = load_restaurant_index()
-centroids = load_centroids()
-```
-
-For each user query:
-```python
-results = retrieve_candidates_from_query(query, index, centroids, k=20)
-```
-
-Then match each result to full restaurant details using `business_id` in the ranking/personalization step.
 
 ## Common Pitfalls
 

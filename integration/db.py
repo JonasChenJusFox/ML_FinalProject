@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 
+import certifi
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
@@ -24,7 +25,7 @@ MONGO_DBNAME = os.getenv("MONGO_DBNAME", "NearBite")
 if not MONGO_URI:
     raise ValueError("MONGO_URI is not set in .env")
 
-client = MongoClient(MONGO_URI)
+client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client[MONGO_DBNAME]
 
 

@@ -16,14 +16,30 @@ import streamlit as st
 from frontend.adapters import normalize_results, sort_results
 from frontend.components.hero import render_home_hero
 from frontend.components.restaurant_card import render_restaurant_card
+from integration.api import search_restaurants
 
 
 def render_home(restaurants: list[dict]) -> None:
     render_home_hero()
 
     normalized = normalize_results(restaurants)
+
+    current_user = st.session_state.get("current_user", {}) or {}
+    user_id = current_user.get("username") or "anonymous"
+
+    recommendation_source = restaurants
+    if user_id != "anonymous":
+        recommendation_source = search_restaurants(
+            query="",
+            filters=None,
+            user_id=user_id,
+            top_k=24,
+            user_vector_only=True,
+        )
+
+    recommended_normalized = normalize_results(recommendation_source)
     focus_id = st.session_state.get("focus_business_id")
-    ordered = sort_results(restaurants, focus_id)
+    ordered = sort_results(recommended_normalized, focus_id)
 
     search_cols = st.columns([5.2, 1.2], gap="small")
     with search_cols[0]:

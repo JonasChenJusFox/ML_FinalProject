@@ -14,6 +14,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from integration.db import get_collection
+from integration.user_profile_model import build_profile_text, normalize_answers
 
 users_collection = get_collection("users")
 profiles_collection = get_collection("user_profiles")
@@ -52,12 +53,21 @@ def reset_user_password(username: str, new_password: str) -> None:
 
 
 def save_user_profile(username: str, questionnaire_answers: dict) -> None:
+    normalized_features = normalize_answers(questionnaire_answers)
+    profile_text = build_profile_text(questionnaire_answers)
+
+    existing = profiles_collection.find_one({"username": username}) or {}
+    existing_latest_embedding = existing.get("latest_embedding")
+
     profiles_collection.update_one(
         {"username": username},
         {
             "$set": {
                 "username": username,
-                "questionnaire_answers": questionnaire_answers,
+                "raw_answers": questionnaire_answers,
+                "normalized_features": normalized_features,
+                "profile_text": profile_text,
+                "latest_embedding": existing_latest_embedding,
                 "updated_at": datetime.utcnow(),
             }
         },
@@ -67,3 +77,20 @@ def save_user_profile(username: str, questionnaire_answers: dict) -> None:
 
 def get_user_profile(username: str) -> dict | None:
     return profiles_collection.find_one({"username": username})
+
+
+def update_latest_embedding(username: str, embedding_vector: list[float]) -> None:
+    profiles_collection.update_one(
+        {"username": username},
+        {
+            "$set": {
+                "latest_embedding": {
+                    "vector": embedding_vector,
+                    "model_name": "multi-qa-MiniLM-L6-cos-v1",
+                    "updated_at": datetime.utcnow(),
+                },
+                "updated_at": datetime.utcnow(),
+            }
+        },
+        upsert=True,
+    )

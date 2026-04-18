@@ -19,6 +19,7 @@ from typing import Optional
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESTAURANTS_PATH = REPO_ROOT / "data" / "restaurants.json"
 USER_INTERACTIONS_PATH = REPO_ROOT / "data" / "user_interactions.json"
+SYNTHETIC_USER_PROFILES_PATH = REPO_ROOT / "data" / "synthetic_user_profiles.json"
 
 
 def load_restaurants(source: str = "yelp_cache") -> list[dict]:
@@ -122,6 +123,23 @@ def load_user_interactions(user_id: str) -> list[dict]:
         for record in payload
         if isinstance(record, dict) and str(record.get("user_id", "")) == str(user_id)
     ]
+
+
+def load_synthetic_user_profiles() -> list[dict]:
+    """Load small questionnaire-based synthetic user profiles for local testing."""
+    if not SYNTHETIC_USER_PROFILES_PATH.exists():
+        return []
+
+    try:
+        with SYNTHETIC_USER_PROFILES_PATH.open("r", encoding="utf-8") as file:
+            payload = json.load(file)
+    except Exception:
+        return []
+
+    if not isinstance(payload, list):
+        return []
+
+    return [item for item in payload if isinstance(item, dict)]
 
 
 def clean_restaurant(raw: dict) -> Optional[dict]:

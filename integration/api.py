@@ -27,6 +27,7 @@ from embeddings.vectorizer import (
     retrieve_top_k,
 )
 from recommendation.ranker import apply_filters, fuse_vectors, rank_candidates
+from integration.user_repo import get_user_profile, update_latest_embedding
 
 # ---------------------------------------------------------------------------
 # Module-level cache (populated on first call)
@@ -40,6 +41,7 @@ NYU_LON = -73.9965
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESTAURANT_EMBEDDINGS_PATH = REPO_ROOT / "data" / "restaurant_embeddings.json"
 CLUSTER_CENTROIDS_PATH = REPO_ROOT / "data" / "cluster_centroids.json"
+PERSONALIZATION_ALPHA = 0.3
 
 
 def _safe_float(value, default: float = 0.0) -> float:
@@ -155,35 +157,30 @@ def _apply_borough_filter(restaurants: list[dict], borough: str | None) -> list[
 
 
 def _build_user_embedding_if_available(user_id: str) -> list[float] | None:
-    """Build user embedding from interaction records when available."""
+    """Load latest user embedding, or build it from stored profile text."""
     if not user_id or user_id == "anonymous":
         return None
 
-    interactions = load_user_interactions(user_id)
-    if not interactions:
+    profile = get_user_profile(user_id)
+    if not profile:
         return None
 
-    tags: list[str] = []
-    actions: list[str] = []
+    latest_embedding = profile.get("latest_embedding")
+    if isinstance(latest_embedding, dict):
+        vector = latest_embedding.get("vector")
+        if isinstance(vector, list) and vector:
+            return vector
 
-    for record in interactions:
-        if not isinstance(record, dict):
-            continue
-
-        interaction_type = record.get("interaction_type")
-        if isinstance(interaction_type, str) and interaction_type.strip():
-            actions.append(interaction_type.strip())
-
-        inferred_tags = record.get("inferred_food_tags", [])
-        if isinstance(inferred_tags, list):
-            tags.extend(str(tag).strip() for tag in inferred_tags if str(tag).strip())
-
-    if not tags and not actions:
+    user_document = str(profile.get("profile_text", "")).strip()
+    if not user_document:
         return None
 
-    user_document = " ".join(tags + actions)
     try:
-        return embed_user(user_document)
+        vector = embed_user(user_document)
+        if isinstance(vector, list) and vector:
+            update_latest_embedding(user_id, vector)
+            return vector
+        return None
     except Exception:
         return None
 
@@ -281,14 +278,18 @@ def search_restaurants(
     """
     requested_top_k = max(1, int(top_k))
 
+    query_text = (query or "").strip()
+
     # Step 1: load existing user embedding if available
     user_vector = _build_user_embedding_if_available(user_id)
     adapted_filters = _adapt_filters(filters)
 
-    # User-vector-only mode for Discover:
-    # - if user embedding exists, use blank query vector and fuse with alpha=1.0
-    # - otherwise fallback to location+rating ranking
-    if user_vector_only:
+    # Mode split:
+    # - recommendation mode: empty query (or explicit user_vector_only) -> user vector only
+    # - search mode: non-empty query -> query embedding + user fusion
+    use_recommendation_mode = user_vector_only or not query_text
+
+    if use_recommendation_mode:
         if user_vector is None:
             fallback_restaurants = _get_restaurants()
             return _rank_by_location_and_rating(
@@ -300,9 +301,8 @@ def search_restaurants(
         query_vector = [0.0] * len(user_vector)
         fused_vector = fuse_vectors(query_vector, user_vector, alpha=1.0)
     else:
-        # Normal mode: query embedding + optional user fusion
-        query_vector = embed_query(query or "")
-        fused_vector = fuse_vectors(query_vector, user_vector, alpha=0.3)
+        query_vector = embed_query(query_text)
+        fused_vector = fuse_vectors(query_vector, user_vector, alpha=PERSONALIZATION_ALPHA)
 
     # Step 3: retrieve semantic candidates (cluster-first, then within-cluster search)
     candidates = _retrieve_candidates_cluster_first(fused_vector, k=requested_top_k * 3)
@@ -329,6 +329,102 @@ def search_restaurants(
 
     # Step 7: return top-k
     return ranked[:requested_top_k]
+
+
+def debug_compare_queries(
+    user_id: str,
+    query_a: str,
+    query_b: str,
+    filters: dict | None = None,
+    top_k: int = 5,
+) -> dict:
+    """Print and return top results for two queries under the same user."""
+    results_a = search_restaurants(
+        query=query_a,
+        filters=filters,
+        user_id=user_id,
+        top_k=top_k,
+        user_vector_only=False,
+    )
+    results_b = search_restaurants(
+        query=query_b,
+        filters=filters,
+        user_id=user_id,
+        top_k=top_k,
+        user_vector_only=False,
+    )
+
+    ids_a = [str(item.get("business_id", "")) for item in results_a]
+    ids_b = [str(item.get("business_id", "")) for item in results_b]
+    names_a = [str(item.get("name", "")) for item in results_a]
+    names_b = [str(item.get("name", "")) for item in results_b]
+    overlap = sorted(set(ids_a) & set(ids_b))
+
+    print(f"[debug_compare_queries] user={user_id}")
+    print(f"query_a={query_a!r} -> {names_a}")
+    print(f"query_b={query_b!r} -> {names_b}")
+    print(f"overlap_count={len(overlap)} overlap_ids={overlap}")
+
+    return {
+        "user_id": user_id,
+        "query_a": query_a,
+        "query_b": query_b,
+        "top_k": top_k,
+        "ids_a": ids_a,
+        "ids_b": ids_b,
+        "names_a": names_a,
+        "names_b": names_b,
+        "overlap_ids": overlap,
+        "overlap_count": len(overlap),
+    }
+
+
+def debug_compare_users_same_query(
+    user_a: str,
+    user_b: str,
+    query: str,
+    filters: dict | None = None,
+    top_k: int = 5,
+) -> dict:
+    """Print and return top results for the same query under two different users."""
+    results_a = search_restaurants(
+        query=query,
+        filters=filters,
+        user_id=user_a,
+        top_k=top_k,
+        user_vector_only=False,
+    )
+    results_b = search_restaurants(
+        query=query,
+        filters=filters,
+        user_id=user_b,
+        top_k=top_k,
+        user_vector_only=False,
+    )
+
+    ids_a = [str(item.get("business_id", "")) for item in results_a]
+    ids_b = [str(item.get("business_id", "")) for item in results_b]
+    names_a = [str(item.get("name", "")) for item in results_a]
+    names_b = [str(item.get("name", "")) for item in results_b]
+    overlap = sorted(set(ids_a) & set(ids_b))
+
+    print(f"[debug_compare_users_same_query] query={query!r}")
+    print(f"user_a={user_a} -> {names_a}")
+    print(f"user_b={user_b} -> {names_b}")
+    print(f"overlap_count={len(overlap)} overlap_ids={overlap}")
+
+    return {
+        "query": query,
+        "user_a": user_a,
+        "user_b": user_b,
+        "top_k": top_k,
+        "ids_a": ids_a,
+        "ids_b": ids_b,
+        "names_a": names_a,
+        "names_b": names_b,
+        "overlap_ids": overlap,
+        "overlap_count": len(overlap),
+    }
 
 
 def get_restaurant_by_id(business_id: str) -> dict | None:

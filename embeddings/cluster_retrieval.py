@@ -16,6 +16,7 @@ and the user modeling + ranking layer. Its output is a shortlist of
 
 import json
 import logging
+import argparse
 
 from embeddings.vectorizer import cosine_similarity, embed_query
 
@@ -167,3 +168,63 @@ def retrieve_candidates_from_query(
     """
     query_vector = embed_query(query)
     return retrieve_candidates(query_vector, index, centroids, k=k)
+
+
+def main() -> None:
+    """Run cluster retrieval from the command line.
+
+    Example:
+        python -m embeddings.cluster_retrieval --query "cozy japanese spot" --k 5
+    """
+    parser = argparse.ArgumentParser(
+        description="Retrieve top-k restaurant candidates for a query."
+    )
+    parser.add_argument(
+        "--query",
+        type=str,
+        required=True,
+        help="Natural language query string.",
+    )
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=20,
+        help="Number of top results to return (default 20).",
+    )
+    parser.add_argument(
+        "--index-path",
+        type=str,
+        default="data/restaurant_embeddings.json",
+        help="Path to restaurant embeddings JSON.",
+    )
+    parser.add_argument(
+        "--centroids-path",
+        type=str,
+        default="data/cluster_centroids.json",
+        help="Path to cluster centroids JSON.",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="WARNING",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging level (default WARNING).",
+    )
+    args = parser.parse_args()
+
+    logging.basicConfig(level=getattr(logging, args.log_level))
+
+    index = load_restaurant_index(args.index_path)
+    centroids = load_centroids(args.centroids_path)
+    results = retrieve_candidates_from_query(args.query, index, centroids, k=args.k)
+
+    if not results:
+        print("No candidates found.")
+        return
+
+    for rank, (business_id, score, cluster_id) in enumerate(results, start=1):
+        print(f"{rank}. {business_id} | score={score:.4f} | cluster={cluster_id}")
+
+
+if __name__ == "__main__":
+    main()

@@ -20,6 +20,7 @@ from frontend.components.empty_state import render_empty_state
 from frontend.components.location_picker import render_location_picker
 from frontend.components.map_view import render_map
 from frontend.components.restaurant_card import render_restaurant_card
+from integration.api import search_restaurants
 from integration.wrapped_repo import log_user_interaction
 
 
@@ -231,19 +232,35 @@ def render_discover(restaurants: list[dict]) -> None:
             st.session_state.discover_viewed_ids = []
             st.rerun()
 
-    filtered = [
-        item
-        for item in normalized
-        if _passes_filters(
-            item=item,
-            query=st.session_state.get("discover_query", ""),
-            selected_categories=st.session_state.get("discover_categories", []),
-            selected_borough=st.session_state.get("discover_borough", "All"),
-            selected_prices=st.session_state.get("discover_prices", []),
-            min_rating=float(st.session_state.get("discover_min_rating", 4.0)),
-            radius_minutes=int(st.session_state.get("discover_radius_minutes", 30)),
-        )
-    ]
+    current_user = st.session_state.get("current_user", {}) or {}
+    user_id = current_user.get("username") or "anonymous"
+    use_user_vector_only = user_id != "anonymous"
+
+    backend_filters = {
+        "discover_categories": st.session_state.get("discover_categories", []),
+        "discover_borough": st.session_state.get("discover_borough", "All"),
+        "discover_prices": st.session_state.get("discover_prices", []),
+        "discover_min_rating": float(st.session_state.get("discover_min_rating", 4.0)),
+        "discover_radius_minutes": int(st.session_state.get("discover_radius_minutes", 30)),
+    }
+
+    backend_ranked = search_restaurants(
+        query=st.session_state.get("discover_query", ""),
+        filters=backend_filters,
+        user_id=user_id,
+        top_k=200,
+        user_vector_only=use_user_vector_only,
+    )
+
+    filtered = normalize_results(
+        [
+            {
+                **item,
+                "score": float(item.get("final_score", item.get("score", 0.0)) or 0.0),
+            }
+            for item in backend_ranked
+        ]
+    )
 
     jump_id = st.session_state.get("jump_to_business_id")
     if jump_id:

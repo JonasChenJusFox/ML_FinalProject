@@ -119,3 +119,68 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
     if norm_vec1 == 0 or norm_vec2 == 0:
         return 0.0
     return dot_product / (norm_vec1 * norm_vec2)
+
+
+def build_restaurant_index(restaurants: list[dict]) -> list[tuple[dict, list[float]]]:
+    """Build an in-memory restaurant index of ``(restaurant, embedding)`` tuples.
+
+    Reuses a pre-existing ``embedding`` field if present; otherwise computes
+    embeddings from ``embedding_text``.
+    """
+    index: list[tuple[dict, list[float]]] = []
+    to_embed: list[dict] = []
+
+    for restaurant in restaurants:
+        if not isinstance(restaurant, dict):
+            continue
+
+        vector = restaurant.get("embedding")
+        if isinstance(vector, list) and vector:
+            index.append((restaurant, vector))
+            continue
+
+        if "embedding_text" in restaurant:
+            to_embed.append(restaurant)
+
+    if not to_embed:
+        return index
+
+    model = get_embedding_model()
+    documents = [restaurant["embedding_text"] for restaurant in to_embed]
+
+    try:
+        vectors = model.encode(
+            documents,
+            normalize_embeddings=True,
+            convert_to_numpy=True,
+        ).tolist()
+        for restaurant, vector in zip(to_embed, vectors):
+            index.append((restaurant, vector))
+        return index
+    except Exception:
+        for restaurant in to_embed:
+            try:
+                index.append((restaurant, embed_restaurant(restaurant)))
+            except Exception:
+                continue
+        return index
+
+
+def retrieve_top_k(
+    query_vector: list[float],
+    index: list[tuple[dict, list[float]]],
+    k: int = 20,
+) -> list[tuple[dict, float]]:
+    """Retrieve top-k restaurants by cosine similarity."""
+    if not query_vector or not index:
+        return []
+
+    scored: list[tuple[dict, float]] = []
+    for restaurant, embedding in index:
+        if not isinstance(embedding, list) or not embedding:
+            continue
+        score = cosine_similarity(query_vector, embedding)
+        scored.append((restaurant, score))
+
+    scored.sort(key=lambda item: item[1], reverse=True)
+    return scored[: max(1, int(k))]

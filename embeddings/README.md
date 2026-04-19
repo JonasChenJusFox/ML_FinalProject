@@ -35,15 +35,30 @@ python -m embeddings.cluster_retrieval --query "cozy japanese spot with great se
 
 ## Inputs And Outputs
 
+- Embedding model used everywhere:
+  - `sentence-transformers/multi-qa-mpnet-base-cos-v1`
+
 - Primary input to build:
   - `data/restaurants.json` (list of restaurant dicts)
   - required fields per row: `business_id`, `embedding_text`
 
 - Files created by the build step:
   - `data/restaurant_embeddings.json`
-    - shape: `{ "business_id": str, "embedding": list[float], "cluster_id": int }`
+    - shape:
+      - `{`
+      - `  "business_id": str,`
+      - `  "name": str | null,`
+      - `  "embedding": list[float],`
+      - `  "cluster_id": int,`
+      - `  "rating": float | null,`
+      - `  "review_count": int | null,`
+      - `  "price": str | null,`
+      - `  "distance_km": float | null,`
+      - `  "categories": list[str] | list[dict]`
+      - `}`
   - `data/cluster_centroids.json`
-    - shape: `{ "cluster_id": int, "centroid": list[float] }`
+    - shape: `{ "0": list[float], "1": list[float], ... }`
+    - note: JSON keys are strings; loader converts them to `int` cluster IDs at runtime.
 
 - Retrieval output (`cluster_retrieval.py`):
   - `list[tuple[business_id, similarity_score, cluster_id]]`

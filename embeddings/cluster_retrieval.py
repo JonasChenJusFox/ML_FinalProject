@@ -16,6 +16,7 @@ and the user modeling + ranking layer. Its output is a shortlist of
 
 import json
 import logging
+import argparse
 
 from embeddings.vectorizer import cosine_similarity, embed_query
 
@@ -42,7 +43,7 @@ def load_restaurant_index(filepath: str = "data/restaurant_embeddings.json") -> 
     return index
 
 
-def load_centroids(filepath: str = "data/cluster_centroids.json") -> list[dict]:
+def load_centroids(filepath: str = "data/cluster_centroids.json") -> dict[int, list[float]]:
     """Load precomputed cluster centroids from disk.
 
     Args:
@@ -50,10 +51,23 @@ def load_centroids(filepath: str = "data/cluster_centroids.json") -> list[dict]:
                   by build_index.py.
 
     Returns:
-        List of dicts with keys: cluster_id, centroid.
+        Dict mapping cluster_id -> centroid vector.
     """
     with open(filepath, "r") as f:
-        centroids = json.load(f)
+        raw_centroids = json.load(f)
+
+    if isinstance(raw_centroids, dict):
+        centroids = {
+            int(cluster_id): centroid
+            for cluster_id, centroid in raw_centroids.items()
+        }
+    else:
+        # Backward compatibility with older list-of-dicts centroid format.
+        centroids = {
+            int(entry["cluster_id"]): entry["centroid"]
+            for entry in raw_centroids
+        }
+
     logger.info("Loaded %d cluster centroids from %s", len(centroids), filepath)
     return centroids
 
@@ -64,34 +78,22 @@ def load_centroids(filepath: str = "data/cluster_centroids.json") -> list[dict]:
 
 def find_nearest_clusters(
     query_vector: list[float],
-    centroids: list[dict],
-    top_n: int = 2, #Just added
+    centroids: dict[int, list[float]],
+    top_n: int = 2,
 ) -> list[int]:
-    """Find the cluster whose centroid is most similar to the query vector.
+    """Find nearest clusters by centroid similarity to the query vector.
 
     Args:
         query_vector: Normalized embedding vector for the query.
-        centroids: List of centroid dicts with keys: cluster_id, centroid.
+        centroids: Dict mapping cluster_id -> centroid vector.
 
     Returns:
-        cluster_id of the nearest centroid.
+        List of nearest cluster IDs sorted by similarity descending.
     """
-    '''
-    best_cluster_id = 0
-    best_score = -1.0
-
-    for entry in centroids:
-        score = cosine_similarity(query_vector, entry["centroid"])
-        if score > best_score:
-            best_score = score
-            best_cluster_id = entry["cluster_id"]
-
-    return best_cluster_id
-    '''
     scored = []
-    for entry in centroids:
-        score = cosine_similarity(query_vector, entry["centroid"])
-        scored.append((entry["cluster_id"], score))
+    for cluster_id, centroid in centroids.items():
+        score = cosine_similarity(query_vector, centroid)
+        scored.append((cluster_id, score))
     scored.sort(key=lambda x: x[1], reverse=True)
     return [cluster_id for cluster_id, _ in scored[:top_n]]
 
@@ -103,7 +105,7 @@ def find_nearest_clusters(
 def retrieve_candidates(
     query_vector: list[float],
     index: list[dict],
-    centroids: list[dict],
+    centroids: dict[int, list[float]],
     k: int = 20,
 ) -> list[tuple[str, float, int]]:
     """Retrieve top-k restaurant candidates using cluster-based retrieval.
@@ -147,7 +149,7 @@ def retrieve_candidates(
 def retrieve_candidates_from_query(
     query: str,
     index: list[dict],
-    centroids: list[dict],
+    centroids: dict[int, list[float]],
     k: int = 20,
 ) -> list[tuple[str, float, int]]:
     """Convenience wrapper: embed a raw query string and retrieve candidates.
@@ -167,3 +169,63 @@ def retrieve_candidates_from_query(
     """
     query_vector = embed_query(query)
     return retrieve_candidates(query_vector, index, centroids, k=k)
+
+
+def main() -> None:
+    """Run cluster retrieval from the command line.
+
+    Example:
+        python -m embeddings.cluster_retrieval --query "cozy japanese spot" --k 5
+    """
+    parser = argparse.ArgumentParser(
+        description="Retrieve top-k restaurant candidates for a query."
+    )
+    parser.add_argument(
+        "--query",
+        type=str,
+        required=True,
+        help="Natural language query string.",
+    )
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=20,
+        help="Number of top results to return (default 20).",
+    )
+    parser.add_argument(
+        "--index-path",
+        type=str,
+        default="data/restaurant_embeddings.json",
+        help="Path to restaurant embeddings JSON.",
+    )
+    parser.add_argument(
+        "--centroids-path",
+        type=str,
+        default="data/cluster_centroids.json",
+        help="Path to cluster centroids JSON.",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="WARNING",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging level (default WARNING).",
+    )
+    args = parser.parse_args()
+
+    logging.basicConfig(level=getattr(logging, args.log_level))
+
+    index = load_restaurant_index(args.index_path)
+    centroids = load_centroids(args.centroids_path)
+    results = retrieve_candidates_from_query(args.query, index, centroids, k=args.k)
+
+    if not results:
+        print("No candidates found.")
+        return
+
+    for rank, (business_id, score, cluster_id) in enumerate(results, start=1):
+        print(f"{rank}. {business_id} | score={score:.4f} | cluster={cluster_id}")
+
+
+if __name__ == "__main__":
+    main()

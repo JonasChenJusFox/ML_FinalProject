@@ -6,11 +6,11 @@ Owner: Fidaa
 Core embedding utilities for the restaurant discovery pipeline.
 
 Provides low-level embedding and similarity functions used across all modules.
-All embeddings are 384-dimensional normalized vectors.
+All embeddings are normalized vectors.
 
 NOTE: All modules (vectorizer, build_index, cluster_retrieval, user modeling)
 must use the same model to ensure embedding spaces are compatible.
-Default model: multi-qa-MiniLM-L6-cos-v1 (fine-tuned for asymmetric retrieval).
+Default model: sentence-transformers/multi-qa-mpnet-base-cos-v1.
 """
 
 from sentence_transformers import SentenceTransformer
@@ -22,7 +22,7 @@ from sentence_transformers import SentenceTransformer
 _model_cache = None
 
 
-def get_embedding_model(model_name: str = "multi-qa-MiniLM-L6-cos-v1") -> SentenceTransformer:
+def get_embedding_model(model_name: str = "sentence-transformers/multi-qa-mpnet-base-cos-v1") -> SentenceTransformer:
     """Load and cache the SentenceTransformer embedding model.
 
     Args:
@@ -49,7 +49,7 @@ def embed_restaurant(restaurant: dict) -> list[float]:
         restaurant: Restaurant dict with an 'embedding_text' field.
 
     Returns:
-        384-dimensional normalized embedding vector as a list of floats.
+        Normalized embedding vector as a list of floats.
     """
     model = get_embedding_model()
 
@@ -70,7 +70,7 @@ def embed_query(query: str) -> list[float]:
         query: User query text.
 
     Returns:
-        384-dimensional normalized embedding vector as a list of floats.
+        Normalized embedding vector as a list of floats.
     """
     model = get_embedding_model()
     vector = model.encode(
@@ -92,7 +92,7 @@ def embed_user(user_document: str) -> list[float]:
         user_document: Natural language string capturing user preferences.
 
     Returns:
-        384-dimensional normalized embedding vector as a list of floats.
+        Normalized embedding vector as a list of floats.
     """
     model = get_embedding_model()
     vector = model.encode(

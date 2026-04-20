@@ -22,3 +22,4 @@ backup_local_changes/
 recovered_files/
 
 .claude/
+venv/

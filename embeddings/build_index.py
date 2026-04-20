@@ -10,8 +10,9 @@ and saves the results to disk. Run this script once (or whenever the
 restaurant data changes) before starting the app.
 
 Outputs:
-    data/restaurant_embeddings.json  — list of {business_id, embedding, cluster_id}
-    data/cluster_centroids.json      — list of {cluster_id, centroid}
+    data/restaurant_embeddings.json  — list of {business_id, name, embedding, cluster_id,
+                                        rating, review_count, price, distance_km, categories}
+    data/cluster_centroids.json      — object mapping cluster_id -> centroid
 
 Usage:
     python build_index.py --input data/restaurants.json --k 20
@@ -149,25 +150,32 @@ def build_and_save_index(
           f"max={max(cluster_counts.values())}, "
           f"avg={sum(cluster_counts.values()) / len(cluster_counts):.1f}")
 
-    # Step 3: Save restaurant embeddings with cluster assignments
+    # Step 3: Save restaurant embeddings with cluster assignments and
+    # ranker-friendly metadata fields.
     print(f"Saving restaurant embeddings to {embeddings_output}...")
     restaurant_index = []
     for restaurant, embedding, cluster_id in zip(restaurants, embeddings, assignments):
         restaurant_index.append({
             "business_id": restaurant["business_id"],
+            "name": restaurant.get("name"),
             "embedding": embedding,
             "cluster_id": cluster_id,
+            "rating": restaurant.get("rating"),
+            "review_count": restaurant.get("review_count"),
+            "price": restaurant.get("price"),
+            "distance_km": restaurant.get("distance_km"),
+            "categories": restaurant.get("categories", []),
         })
     with open(embeddings_output, "w") as f:
         json.dump(restaurant_index, f)
     print(f"Saved {len(restaurant_index)} entries to {embeddings_output}")
 
-    # Step 4: Save cluster centroids
+    # Step 4: Save cluster centroids as a mapping for ranker compatibility
     print(f"Saving cluster centroids to {centroids_output}...")
-    centroid_data = [
-        {"cluster_id": cluster_id, "centroid": centroid}
+    centroid_data = {
+        cluster_id: centroid
         for cluster_id, centroid in enumerate(centroids)
-    ]
+    }
     with open(centroids_output, "w") as f:
         json.dump(centroid_data, f)
     print(f"Saved {len(centroid_data)} centroids to {centroids_output}")

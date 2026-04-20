@@ -172,14 +172,7 @@ def render_discover(restaurants: list[dict]) -> None:
         )
 
         if st.button("Clear filters", use_container_width=True):
-            st.session_state.discover_query = ""
-            st.session_state.search_query = ""
-            st.session_state.discover_categories = []
-            st.session_state.discover_borough = "All"
-            st.session_state.discover_prices = []
-            st.session_state.discover_min_rating = 4.0
-            st.session_state.discover_radius_minutes = 30
-            st.session_state.discover_viewed_ids = []
+            st.session_state.pending_discover_reset = True
             st.rerun()
 
     current_user = st.session_state.get("current_user", {}) or {}

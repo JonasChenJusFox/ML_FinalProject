@@ -49,7 +49,7 @@ def _safe_float(value, default: float = 0.0) -> float:
         return default
 
 
-def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     radius_km = 6371.0
     p1 = math.radians(lat1)
     p2 = math.radians(lat2)
@@ -66,7 +66,7 @@ def _with_distance_km(restaurants: list[dict]) -> list[dict]:
         lat = _safe_float(item.get("latitude"), 0.0)
         lon = _safe_float(item.get("longitude"), 0.0)
         if lat and lon:
-            item["distance_km"] = _haversine_km(NYU_LAT, NYU_LON, lat, lon)
+            item["distance_km"] = haversine_km(NYU_LAT, NYU_LON, lat, lon)
         else:
             item["distance_km"] = None
         enriched.append(item)
@@ -288,27 +288,20 @@ def search_restaurants(
     # User-vector-only mode for Discover:
     # - if user embedding exists, use blank query vector and fuse with alpha=1.0
     # - otherwise fallback to location+rating ranking
-    if user_vector_only:
-        if user_vector is None:
-            fallback_restaurants = _get_restaurants()
-            return _rank_by_location_and_rating(
-                restaurants=fallback_restaurants,
-                filters=adapted_filters,
-                top_k=requested_top_k,
-            )
-
-        query_vector = [0.0] * len(user_vector)
-        fused_vector = fuse_vectors(query_vector, user_vector, alpha=1.0)
-    else:
-        # Normal mode: query embedding + optional user fusion
+    if user_vector_only and user_vector is not None:                                       
         query_vector = embed_query(query or "")
-        fused_vector = fuse_vectors(query_vector, user_vector, alpha=0.3)
+        fused_vector = fuse_vectors(query_vector, user_vector, alpha=0.7)
+    else:                                                                                  
+        query_vector = embed_query(query or "")
+        fused_vector = fuse_vectors(query_vector, user_vector, alpha=0.3)      
 
     # Step 3: retrieve semantic candidates (cluster-first, then within-cluster search)
     candidates = _retrieve_candidates_cluster_first(fused_vector, k=requested_top_k * 3)
 
     # Step 4: apply structured filters
     candidate_restaurants = [r for r, _ in candidates]
+    #add distance maximum before filtering
+    candidate_restaurants = _with_distance_km(candidate_restaurants) 
     filtered = apply_filters(candidate_restaurants, adapted_filters)
     filtered = _apply_borough_filter(filtered, adapted_filters.get("borough"))
 
@@ -318,6 +311,7 @@ def search_restaurants(
         for restaurant, score in candidates
         if isinstance(restaurant, dict)
     }
+    
     filtered_with_scores = [
         (restaurant, score_map.get(str(restaurant.get("business_id", "")), 0.0))
         for restaurant in filtered
@@ -329,6 +323,11 @@ def search_restaurants(
 
     # Step 7: return top-k
     return ranked[:requested_top_k]
+
+
+def get_all_restaurants() -> list[dict]:
+    """Return the full cached restaurant list."""
+    return list(_get_restaurants())
 
 
 def get_restaurant_by_id(business_id: str) -> dict | None:

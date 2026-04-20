@@ -12,15 +12,12 @@ Responsibilities:
 
 from __future__ import annotations
 
-import math
 import re
 from collections import Counter
 
 import streamlit as st
 
-
-NYU_LAT = 40.7295
-NYU_LON = -73.9965
+from integration.api import NYU_LAT, NYU_LON, haversine_km as _haversine_km
 
 
 def clean_text(value: str) -> str:
@@ -71,16 +68,6 @@ def reset_origin_to_nyu() -> None:
     st.session_state.user_lat = None
     st.session_state.user_lon = None
 
-
-def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    r = 6371.0
-    p1 = math.radians(lat1)
-    p2 = math.radians(lat2)
-    dp = math.radians(lat2 - lat1)
-    dl = math.radians(lon2 - lon1)
-
-    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 def _minutes_from_current_origin(lat: float, lon: float) -> int:

@@ -27,56 +27,6 @@ from integration.wrapped_repo import log_user_interaction
 SHOW_OPTIONS = [12, 24, 36, 48, "All"]
 
 
-def _matches_query(item: dict, query: str) -> bool:
-    q = clean_text(query).lower()
-    if not q:
-        return True
-
-    haystack = " ".join(
-        [
-            clean_text(item.get("name", "")),
-            clean_text(item.get("borough", "")),
-            " ".join(item.get("categories", [])),
-            clean_text(item.get("address", "")),
-            clean_text(item.get("review_snippet", "")),
-        ]
-    ).lower()
-
-    return all(token in haystack for token in q.split())
-
-
-def _passes_filters(
-    item: dict,
-    query: str,
-    selected_categories: list[str],
-    selected_borough: str,
-    selected_prices: list[str],
-    min_rating: float,
-    radius_minutes: int,
-) -> bool:
-    if query and not _matches_query(item, query):
-        return False
-
-    if selected_categories:
-        restaurant_categories = {c.lower() for c in item.get("categories", [])}
-        selected_set = {c.lower() for c in selected_categories}
-        if restaurant_categories.isdisjoint(selected_set):
-            return False
-
-    if selected_borough != "All" and item.get("borough") != selected_borough:
-        return False
-
-    if selected_prices and item.get("price_display") not in selected_prices:
-        return False
-
-    if float(item.get("rating", 0.0) or 0.0) < min_rating:
-        return False
-
-    if int(item.get("travel_minutes", 0) or 0) > radius_minutes:
-        return False
-
-    return True
-
 
 def _initialize_discover_state() -> None:
     if "discover_query" not in st.session_state:

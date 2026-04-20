@@ -20,3 +20,5 @@ node_modules/
 # Local backups / temp
 backup_local_changes/
 recovered_files/
+
+.claude/

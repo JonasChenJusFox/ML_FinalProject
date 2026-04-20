@@ -1,0 +1,65 @@
+[
+  {
+    "username": "synthetic_spicy_explorer",
+    "raw_answers": {
+      "top_cuisines": ["Japanese", "Korean", "Thai"],
+      "craving_preferences": ["spicy", "fancy/experimental"],
+      "price_comfort_level": "$$$",
+      "vibes_dining_style": ["lively / buzzy", "date night"],
+      "dietary_restrictions": ["None"],
+      "adventurousness": 5,
+      "travel_willingness": "Anywhere in the city",
+      "dining_company": "Partner / couple",
+      "typical_meals": ["dinner", "late night"],
+      "decision_criteria": ["vibe/atmosphere", "recommendations"],
+      "novelty_preference": "try new things",
+      "favorite_dishes": ["ramen", "kimchi fried rice", "tom yum"],
+      "loved_restaurants": ["Ippudo", "Atoboy"],
+      "wishlist_restaurants": ["Atomix", "Jua"],
+      "frequent_restaurants": ["Cho Dang Gol", "Soothr", "Raku"],
+      "aspirational_restaurants": ["Sushi Noz", "Masa", "Le Bernardin"]
+    }
+  },
+  {
+    "username": "synthetic_budget_comfort",
+    "raw_answers": {
+      "top_cuisines": ["Mexican", "American / Burgers", "Italian"],
+      "craving_preferences": ["comfort food", "fast/casual", "sweet/dessert"],
+      "price_comfort_level": "$$",
+      "vibes_dining_style": ["casual hangout", "quick bite / grab-and-go"],
+      "dietary_restrictions": ["None"],
+      "adventurousness": 2,
+      "travel_willingness": "Short commute (10–20 min / ~1 mi)",
+      "dining_company": "Small group (3–5)",
+      "typical_meals": ["lunch", "dinner"],
+      "decision_criteria": ["ratings", "convenience"],
+      "novelty_preference": "stick to what i know",
+      "favorite_dishes": ["birria tacos", "smash burger", "cacio e pepe"],
+      "loved_restaurants": ["Joe's Pizza", "Rubirosa"],
+      "wishlist_restaurants": ["L'Artusi"],
+      "frequent_restaurants": ["Xi'an Famous Foods", "Tacombi", "Los Tacos No.1"],
+      "aspirational_restaurants": ["Carbone", "Don Angie", "Keens Steakhouse"]
+    }
+  },
+  {
+    "username": "synthetic_dietary_quiet",
+    "raw_answers": {
+      "top_cuisines": ["Mediterranean / Middle Eastern", "Indian", "Vietnamese"],
+      "craving_preferences": ["light", "comfort food"],
+      "price_comfort_level": "$$",
+      "vibes_dining_style": ["quiet / work-friendly", "cozy / intimate"],
+      "dietary_restrictions": ["Vegetarian", "Dairy-free"],
+      "adventurousness": 3,
+      "travel_willingness": "Across the neighborhood (20–35 min)",
+      "dining_company": "Solo",
+      "typical_meals": ["brunch", "lunch"],
+      "decision_criteria": ["review", "vibe/atmosphere"],
+      "novelty_preference": "mix of both",
+      "favorite_dishes": ["falafel", "chana masala", "pho chay"],
+      "loved_restaurants": ["Dirt Candy"],
+      "wishlist_restaurants": ["Superiority Burger", "abcV"],
+      "frequent_restaurants": ["Mamoun's", "Spice Symphony", "Nami Nori"],
+      "aspirational_restaurants": ["Eleven Madison Park", "Blue Hill"]
+    }
+  }
+]

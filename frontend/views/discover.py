@@ -184,7 +184,6 @@ def render_discover(restaurants: list[dict]) -> None:
 
     current_user = st.session_state.get("current_user", {}) or {}
     user_id = current_user.get("username") or "anonymous"
-    use_user_vector_only = user_id != "anonymous"
 
     backend_filters = {
         "discover_categories": st.session_state.get("discover_categories", []),
@@ -199,7 +198,7 @@ def render_discover(restaurants: list[dict]) -> None:
         filters=backend_filters,
         user_id=user_id,
         top_k=200,
-        user_vector_only=use_user_vector_only,
+        user_vector_only=False,
     )
 
     filtered = normalize_results(

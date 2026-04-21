@@ -65,8 +65,9 @@ def _with_distance_km(restaurants: list[dict]) -> list[dict]:
     enriched: list[dict] = []
     for restaurant in restaurants:
         item = dict(restaurant)
-        lat = _safe_float(item.get("latitude"), 0.0)
-        lon = _safe_float(item.get("longitude"), 0.0)
+        coords = item.get("coordinates") or {}
+        lat = _safe_float(item.get("latitude") or coords.get("latitude"), 0.0)
+        lon = _safe_float(item.get("longitude") or coords.get("longitude"), 0.0)
         if lat and lon:
             item["distance_km"] = haversine_km(NYU_LAT, NYU_LON, lat, lon)
         else:

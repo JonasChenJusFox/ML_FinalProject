@@ -173,8 +173,9 @@ def normalize_restaurant(raw: dict) -> dict:
     if not isinstance(reviews, list):
         reviews = []
 
-    lat = _safe_float(raw.get("latitude"), 0.0)
-    lon = _safe_float(raw.get("longitude"), 0.0)
+    coords = raw.get("coordinates") or {}
+    lat = _safe_float(raw.get("latitude") or coords.get("latitude"), 0.0)
+    lon = _safe_float(raw.get("longitude") or coords.get("longitude"), 0.0)
 
     return {
     "business_id": clean_text(raw.get("business_id", "")),

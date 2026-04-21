@@ -21,7 +21,6 @@ from frontend.auth import open_login_modal
 from frontend.components.onboarding_form import render_onboarding_form
 from frontend.components.restaurant_card import render_restaurant_card
 from frontend.user_profile_state import get_questionnaire_answers, init_user_profile_state
-from integration.api import search_restaurants
 from integration.wrapped_repo import build_wrapped_stats
 from recommendation.algorithm import recommend_top_restaurants
 
@@ -87,19 +86,8 @@ def render_recommendation(restaurants: list[dict]) -> None:
     answers = get_questionnaire_answers()
     wrapped_stats = build_wrapped_stats(username, normalized_restaurants)
 
-    query_parts = (
-        answers.get("favorite_cuisines", [])
-        + answers.get("cravings", [])
-        + answers.get("place_types", [])
-        + answers.get("favorite_dishes", [])
-    )
-    query = " ".join(query_parts) if query_parts else "restaurant"
-    filters = st.session_state.get("filters", {})
-    backend_candidates = search_restaurants(query, filters, user_id=username, top_k=50)
-    candidates = normalize_results(backend_candidates) if backend_candidates else normalized_restaurants
-
     ranked = recommend_top_restaurants(
-        restaurants=candidates,
+        restaurants=normalized_restaurants,
         questionnaire_answers=answers,
         wrapped_stats=wrapped_stats,
         top_k=10,

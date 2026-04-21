@@ -157,30 +157,55 @@ def _apply_borough_filter(restaurants: list[dict], borough: str | None) -> list[
 
 
 def _build_user_embedding_if_available(user_id: str) -> list[float] | None:
-    """Load latest user embedding, or build it from stored profile text."""
+    """Build user embedding with three-tier fallback:
+    1. Stored latest_embedding from profile (fastest)
+    2. Rebuild from profile_text and persist
+    3. Build from interaction history (for users without a profile)
+    """
     if not user_id or user_id == "anonymous":
         return None
 
+    # Tier 1 & 2: profile-based embedding
     profile = get_user_profile(user_id)
-    if not profile:
+    if profile:
+        latest_embedding = profile.get("latest_embedding")
+        if isinstance(latest_embedding, dict):
+            vector = latest_embedding.get("vector")
+            if isinstance(vector, list) and vector:
+                return vector
+
+        user_document = str(profile.get("profile_text", "")).strip()
+        if user_document:
+            try:
+                vector = embed_user(user_document)
+                if isinstance(vector, list) and vector:
+                    update_latest_embedding(user_id, vector)
+                    return vector
+            except Exception:
+                pass
+
+    # Tier 3: fall back to interaction history
+    interactions = load_user_interactions(user_id)
+    if not interactions:
         return None
 
-    latest_embedding = profile.get("latest_embedding")
-    if isinstance(latest_embedding, dict):
-        vector = latest_embedding.get("vector")
-        if isinstance(vector, list) and vector:
-            return vector
+    tags: list[str] = []
+    actions: list[str] = []
+    for record in interactions:
+        if not isinstance(record, dict):
+            continue
+        interaction_type = record.get("interaction_type")
+        if isinstance(interaction_type, str) and interaction_type.strip():
+            actions.append(interaction_type.strip())
+        inferred_tags = record.get("inferred_food_tags", [])
+        if isinstance(inferred_tags, list):
+            tags.extend(str(tag).strip() for tag in inferred_tags if str(tag).strip())
 
-    user_document = str(profile.get("profile_text", "")).strip()
-    if not user_document:
+    if not tags and not actions:
         return None
 
     try:
-        vector = embed_user(user_document)
-        if isinstance(vector, list) and vector:
-            update_latest_embedding(user_id, vector)
-            return vector
-        return None
+        return embed_user(" ".join(tags + actions))
     except Exception:
         return None
 
@@ -308,9 +333,7 @@ def search_restaurants(
     candidates = _retrieve_candidates_cluster_first(fused_vector, k=requested_top_k * 3)
 
     # Step 4: apply structured filters
-    candidate_restaurants = [r for r, _ in candidates]
-    #add distance maximum before filtering
-    candidate_restaurants = _with_distance_km(candidate_restaurants) 
+    candidate_restaurants = _with_distance_km([r for r, _ in candidates])
     filtered = apply_filters(candidate_restaurants, adapted_filters)
     filtered = _apply_borough_filter(filtered, adapted_filters.get("borough"))
 

@@ -86,7 +86,7 @@ def update_latest_embedding(username: str, embedding_vector: list[float]) -> Non
             "$set": {
                 "latest_embedding": {
                     "vector": embedding_vector,
-                    "model_name": "multi-qa-MiniLM-L6-cos-v1",
+                    "model_name": "sentence-transformers/multi-qa-mpnet-base-cos-v1",
                     "updated_at": datetime.utcnow(),
                 },
                 "updated_at": datetime.utcnow(),

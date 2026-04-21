@@ -171,7 +171,9 @@ def _build_user_embedding_if_available(user_id: str) -> list[float] | None:
         latest_embedding = profile.get("latest_embedding")
         if isinstance(latest_embedding, dict):
             vector = latest_embedding.get("vector")
-            if isinstance(vector, list) and vector:
+            model = latest_embedding.get("model_name", "")
+            if (isinstance(vector, list) and vector
+                    and model == "sentence-transformers/multi-qa-mpnet-base-cos-v1"):
                 return vector
 
         user_document = str(profile.get("profile_text", "")).strip()

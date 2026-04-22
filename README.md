@@ -9,7 +9,7 @@ NearBite is a Streamlit app for NYC restaurant discovery with:
 - semantic retrieval for query-driven search,
 - structured filtering,
 - ranking,
-- profile/recommendation pages backed by MongoDB.
+- profile data and questionnaire-backed recommendations backed by MongoDB.
 
 Main entrypoint: `app.py`.
 
@@ -29,7 +29,7 @@ pip install streamlit-geolocation
 
 ### 2) Configure environment variables
 
-Create `.env` from `env.example` and set:
+Create `.env` from `.env.example` and set:
 
 ```bash
 MONGO_URI=...
@@ -66,7 +66,9 @@ First model use may download SentenceTransformer weights.
 ## Actual page behavior
 
 ### Home
-- collects search text and navigates to Discover.
+- shows the main search bar,
+- hosts the logged-in questionnaire flow,
+- displays recommendation / nearby restaurant cards directly on the page.
 
 ### Discover (important)
 
@@ -83,8 +85,14 @@ Two modes are used intentionally:
    - if user vector exists: blank query vector + user vector fusion (`alpha=1.0`)
    - if user vector missing: fallback ranking by location + rating.
 
-### Profile / Recommendation
-- use Mongo-backed profile, saved restaurants, wrapped stats, and questionnaire-based recommendation UI.
+### Profile
+- shows wrapped stats and saved restaurants.
+
+### Authentication
+- sign-up uses `username + password`;
+- login uses `username + password`;
+- forgot-password resets by username;
+- newly created passwords are stored as PBKDF2-SHA256 hashes; legacy plaintext passwords are upgraded on successful login.
 
 ## Backend search pipeline (current implementation)
 

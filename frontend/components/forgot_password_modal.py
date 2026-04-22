@@ -18,6 +18,7 @@ from frontend.auth import (
     forgot_password,
     open_login_modal,
 )
+from integration.user_repo import get_secret_question_prompt
 
 
 def render_forgot_password_modal() -> None:
@@ -28,7 +29,14 @@ def render_forgot_password_modal() -> None:
     def _dialog() -> None:
         st.write("Reset your password to regain access to your account.")
 
-        username = st.text_input("Username", key="forgot_modal_username")
+        identifier = st.text_input("Username", key="forgot_modal_identifier")
+        normalized_identifier = str(identifier or "").strip().lower()
+        secret_question_prompt = get_secret_question_prompt(normalized_identifier) if normalized_identifier else ""
+        if secret_question_prompt:
+            st.caption(f"Secret question: {secret_question_prompt}")
+        else:
+            st.caption("Enter your username to load the secret question for this account.")
+        secret_answer = st.text_input("Secret answer", type="password", key="forgot_modal_secret_answer")
         new_password = st.text_input("New password", type="password", key="forgot_modal_new_password")
         confirm_password = st.text_input(
             "Confirm new password",
@@ -39,7 +47,12 @@ def render_forgot_password_modal() -> None:
         top_row = st.columns(2)
         with top_row[0]:
             if st.button("Reset password", key="forgot_modal_submit", use_container_width=True):
-                success, message = forgot_password(username, new_password, confirm_password)
+                success, message = forgot_password(
+                    identifier,
+                    secret_answer,
+                    new_password,
+                    confirm_password,
+                )
                 if success:
                     st.success(message)
                     st.rerun()

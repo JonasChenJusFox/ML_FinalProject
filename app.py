@@ -32,7 +32,7 @@ st.set_page_config(
 def main() -> None:
     apply_theme()
 
-    preview_restaurants = get_all_restaurants() if callable(get_all_restaurants) else []
+    preview_restaurants = get_all_restaurants()[:200] if callable(get_all_restaurants) else []
     init_state(preview_restaurants)
 
     search_callable: Callable | None = (

@@ -11,20 +11,7 @@ Responsibilities:
 
 from __future__ import annotations
 
-
-# Convert symbolic price labels into numeric levels so that
-# price mismatch can be measured with simple arithmetic.
-# Example:
-#   "$"   -> 1
-#   "$$"  -> 2
-#   "$$$" -> 3
-#   "$$$$"-> 4
-PRICE_TO_LEVEL = {
-    "$": 1,
-    "$$": 2,
-    "$$$": 3,
-    "$$$$": 4,
-}
+from recommendation.utils import price_level_value
 
 
 def build_user_features(questionnaire_answers: dict, wrapped_stats: dict) -> dict:
@@ -47,7 +34,7 @@ def build_user_features(questionnaire_answers: dict, wrapped_stats: dict) -> dic
         # Questionnaire-based explicit preferences
         "favorite_cuisines": questionnaire_answers.get("favorite_cuisines", []),
         "cravings": questionnaire_answers.get("cravings", []),
-        "price_range": questionnaire_answers.get("price_range", "$$"),
+        "price_range": questionnaire_answers.get("price_range", "moderate"),
         "place_types": questionnaire_answers.get("place_types", []),
         "dietary": questionnaire_answers.get("dietary", []),
         "usual_location": questionnaire_answers.get("usual_location", ""),
@@ -114,7 +101,7 @@ def compute_questionnaire_score(restaurant: dict, user_features: dict) -> float:
     meals = user_features.get("meals", [])
     favorite_dishes = user_features.get("favorite_dishes", [])
     novelty_preference = user_features.get("novelty_preference", "")
-    price_range = user_features.get("price_range", "$$")
+    price_range = user_features.get("price_range", "moderate")
 
     # ---------------------------------------------------------
     # 1. Cuisine match
@@ -173,8 +160,8 @@ def compute_questionnaire_score(restaurant: dict, user_features: dict) -> float:
     # user wants "$$" (2), restaurant is "$$$$" (4)
     # penalty = |2 - 4| * 0.8 = 1.6
     # ---------------------------------------------------------
-    target_price = PRICE_TO_LEVEL.get(price_range, 2)
-    restaurant_price_level = PRICE_TO_LEVEL.get(price, 2)
+    target_price = price_level_value(price_range) or 2.0
+    restaurant_price_level = price_level_value(price) or 2.0
     score -= abs(target_price - restaurant_price_level) * 0.8
 
     # ---------------------------------------------------------

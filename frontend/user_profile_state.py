@@ -13,12 +13,13 @@ from __future__ import annotations
 
 import streamlit as st
 
+from integration.price_utils import canonicalize_price_label
 from integration.user_repo import get_user_profile, save_user_profile
 
 DEFAULT_QUESTIONNAIRE = {
     "top_cuisines": [],
     "craving_preferences": [],
-    "price_comfort_level": "$$",
+    "price_comfort_level": "moderate",
     "vibes_dining_style": [],
     "dietary_restrictions": [],
     "adventurousness": 3,
@@ -43,11 +44,13 @@ def _clean_list(value: object) -> list[str]:
 
 def _adapt_to_raw_answers(payload: dict | None) -> dict:
     source = payload if isinstance(payload, dict) else {}
+    raw_price = source.get("price_comfort_level", source.get("price_range", "moderate"))
+    normalized_price = canonicalize_price_label(raw_price) or "moderate"
 
     adapted = {
         "top_cuisines": _clean_list(source.get("top_cuisines", source.get("favorite_cuisines", []))),
         "craving_preferences": _clean_list(source.get("craving_preferences", source.get("cravings", []))),
-        "price_comfort_level": str(source.get("price_comfort_level", source.get("price_range", "$$"))).strip() or "$$",
+        "price_comfort_level": normalized_price,
         "vibes_dining_style": _clean_list(source.get("vibes_dining_style", source.get("place_types", []))),
         "dietary_restrictions": _clean_list(source.get("dietary_restrictions", source.get("dietary", []))),
         "adventurousness": source.get("adventurousness", 3),

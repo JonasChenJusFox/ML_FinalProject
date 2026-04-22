@@ -13,12 +13,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from frontend.auth import (
-    close_login_modal,
-    login,
-    open_forgot_password_modal,
-    open_signup_modal,
-)
+from frontend.auth import close_login_modal, login, open_forgot_password_modal, open_signup_modal
 
 
 def render_login_modal() -> None:
@@ -28,14 +23,13 @@ def render_login_modal() -> None:
     @st.dialog("Log in")
     def _dialog() -> None:
         st.write("Log in to save restaurants, view your profile, and get personalized recommendations.")
-
-        username = st.text_input("Username", key="login_modal_username")
+        identifier = st.text_input("Username", key="login_modal_username")
         password = st.text_input("Password", type="password", key="login_modal_password")
 
         top_row = st.columns(2)
         with top_row[0]:
             if st.button("Log in", key="login_modal_submit", use_container_width=True):
-                success, message = login(username, password)
+                success, message = login(identifier, password)
                 if success:
                     st.success(message)
                     st.rerun()

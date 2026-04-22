@@ -65,7 +65,7 @@ def _build_meta_line(restaurant: dict) -> str:
     travel_minutes = restaurant.get("travel_minutes", "—")
 
     origin = get_current_origin()
-    origin_label = origin.get("label", "NYU")
+    origin_label = origin.get("travel_label", origin.get("label", "NYU"))
 
     meta_parts: list[str] = []
 
@@ -133,9 +133,15 @@ def _handle_focus_map(business_id: str) -> None:
 
     st.session_state.focus_business_id = business_id
     st.session_state.jump_to_business_id = business_id
-    st.session_state.pending_discover_reset = True
     st.session_state.page = "Discover"
     st.rerun()
+
+
+def _handle_open_comments(restaurant: dict) -> None:
+    business_id = clean_text(restaurant.get("business_id", ""))
+    open_comments_modal(restaurant)
+    if business_id:
+        _log_if_logged_in(business_id, "comments_opened")
 
 
 def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
@@ -147,8 +153,12 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
     categories = " · ".join(restaurant.get("categories", [])[:3]) or "Restaurant"
     rating = float(restaurant.get("rating", 0.0) or 0.0)
     address = clean_text(restaurant.get("address", "Address not listed")) or "Address not listed"
-    review_text = shorten_text(restaurant.get("review_snippet", ""), 180)
+    body_text = shorten_text(
+        restaurant.get("description") or restaurant.get("review_snippet", ""),
+        220,
+    )
     meta = _build_meta_line(restaurant)
+    url = clean_text(restaurant.get("url", ""))
 
     image_url = clean_text(restaurant.get("image_url", ""))
     if image_url:
@@ -157,42 +167,53 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
             f"alt='{html.escape(name, quote=True)}' class='nb-card-image'/>"
         )
     else:
-        image_html = """
-        <div class='nb-card-image nb-card-image-placeholder'>
-          <div class='nb-card-image-fallback'>Image unavailable</div>
-        </div>
-        """
+        image_html = (
+            "<div class='nb-card-image nb-card-image-placeholder'>"
+            "<div class='nb-card-image-fallback'>Image unavailable</div>"
+            "</div>"
+        )
 
-    st.markdown(
-        f"""
-        <div class="nb-card-wrap">
-          <div class="nb-card">
-            {image_html}
-            <div class="nb-card-body">
-              <div class="nb-card-head">
-                <div>
-                  <div class="nb-card-name">{html.escape(name)}</div>
-                  <div class="nb-card-cuisine">{html.escape(categories)}</div>
-                </div>
-                <div class="nb-rating-pill">⭐ {rating:.1f}</div>
-              </div>
-              <div class="nb-card-meta">{html.escape(meta)}</div>
-              <div class="nb-card-address">{html.escape(address)}</div>
-              <div class="nb-card-review">
-                {html.escape(review_text) if review_text else "No review snippet available."}
-              </div>
-            </div>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    footer_link_html = ""
+    if url:
+        footer_link_html = (
+            f"<div class='nb-card-link'><a href='{html.escape(url, quote=True)}' "
+            f"target='_blank' rel='noopener noreferrer'>Visit listing</a></div>"
+        )
+
+    card_html_parts = [
+        '<div class="nb-card-wrap">',
+        '<div class="nb-card">',
+        image_html.strip(),
+        '<div class="nb-card-body">',
+        '<div class="nb-card-head">',
+        "<div>",
+        f'<div class="nb-card-name">{html.escape(name)}</div>',
+        f'<div class="nb-card-cuisine">{html.escape(categories)}</div>',
+        "</div>",
+        f'<div class="nb-rating-pill">⭐ {rating:.1f}</div>',
+        "</div>",
+        f'<div class="nb-card-meta">{html.escape(meta)}</div>',
+        f'<div class="nb-card-address">{html.escape(address)}</div>',
+        '<div class="nb-card-review">',
+        html.escape(body_text) if body_text else "No description available.",
+        "</div>",
+    ]
+    if footer_link_html:
+        card_html_parts.append(footer_link_html)
+    card_html_parts.extend(
+        [
+            "</div>",
+            "</div>",
+            "</div>",
+        ]
     )
+
+    st.markdown("\n".join(card_html_parts), unsafe_allow_html=True)
 
     saved_ids = st.session_state.get("saved_ids", []) or []
     already_saved = business_id in saved_ids
 
     row1 = st.columns(2, gap="small")
-    row2 = st.columns(2, gap="small")
 
     if row1[0].button(
         "Unsave" if already_saved else "Save",
@@ -208,22 +229,10 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
     ):
         _handle_focus_map(business_id)
 
-    if row2[0].button(
+    st.button(
         "Comments",
         key=f"{key_prefix}_comments_{business_id}",
         use_container_width=True,
-    ):
-        _log_if_logged_in(business_id, "comments_opened")
-        open_comments_modal(name, restaurant.get("google_reviews", []))
-        st.rerun()
-
-    url = clean_text(restaurant.get("url", ""))
-    if url:
-        row2[1].link_button("Source", url, use_container_width=True)
-    else:
-        row2[1].button(
-            "No source",
-            key=f"{key_prefix}_nosource_{business_id}",
-            disabled=True,
-            use_container_width=True,
-        )
+        on_click=_handle_open_comments,
+        args=(restaurant,),
+    )

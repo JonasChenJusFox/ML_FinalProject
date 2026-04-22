@@ -5,6 +5,11 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from integration.price_utils import (
+    price_label_from_level,
+    price_level_value as _shared_price_level_value,
+)
+
 
 def clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
     """Clamp a value to the inclusive range ``[lower, upper]``."""
@@ -39,26 +44,12 @@ def normalized_text(value: str | None) -> str:
 
 def price_level_value(price_level: Any) -> float:
     """Convert common price formats such as ``$$`` or ``3`` into a level."""
-    if price_level is None:
-        return 0.0
-
-    if isinstance(price_level, str):
-        stripped = price_level.strip()
-        if not stripped:
-            return 0.0
-        if "$" in stripped:
-            return float(stripped.count("$"))
-        return to_float(stripped, 0.0)
-
-    return to_float(price_level, 0.0)
+    return _shared_price_level_value(price_level)
 
 
 def price_level_from_numeric(value: float | None) -> str:
-    """Return a compact price label from a numeric price level."""
-    numeric_value = int(round(to_float(value, 0.0)))
-    if numeric_value <= 0:
-        return ""
-    return "$" * numeric_value
+    """Return a normalized semantic price label from a numeric price level."""
+    return price_label_from_level(value)
 
 
 def distance_score(distance_km: float | None, max_distance_km: float = 10.0) -> float:

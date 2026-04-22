@@ -19,6 +19,8 @@ Responsibilities:
   --nb-accent: #ed786a;
   --nb-accent-strong: #d96558;
   --nb-accent-soft: #fff0eb;
+  --nb-input-bg: #fff6f1;
+  --nb-input-border: #e8d1c2;
   --nb-shadow: 0 10px 24px rgba(31, 28, 25, 0.06);
   --nb-radius: 0px;
   --nb-button-h: 46px;
@@ -102,20 +104,140 @@ hr {
   margin-bottom: 1rem;
 }
 
-.nb-nav-menu-panel {
-  max-width: 360px;
-  margin-top: 0.75rem;
-  margin-left: auto;
-  padding: 0.75rem;
-  border: 1px solid var(--nb-border);
-  background: #fffdfa;
-  box-shadow: var(--nb-shadow);
+div[data-testid="stPopover"] > div {
+  background: transparent !important;
 }
 
-.nb-nav-user-label {
-  margin-bottom: 0.8rem;
-  color: var(--nb-text);
-  line-height: 1.45;
+button[data-testid="stPopoverButton"] {
+  width: 100%;
+  min-height: var(--nb-button-h) !important;
+  height: var(--nb-button-h) !important;
+  border-radius: var(--nb-radius) !important;
+  border: 1px solid var(--nb-border) !important;
+  background: #fffdfa !important;
+  color: var(--nb-text) !important;
+  box-shadow: none !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+button[data-testid="stPopoverButton"]:hover {
+  background: #fff7f2 !important;
+  border-color: var(--nb-accent) !important;
+  color: var(--nb-accent-strong) !important;
+  -webkit-text-fill-color: var(--nb-accent-strong) !important;
+}
+
+button[data-testid="stPopoverButton"] *,
+button[data-testid="stPopoverButton"] svg {
+  color: inherit !important;
+  fill: currentColor !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+div[data-testid="stPopover"] button {
+  width: 100%;
+  min-height: var(--nb-button-h) !important;
+  height: var(--nb-button-h) !important;
+  border-radius: var(--nb-radius) !important;
+  border: 1px solid var(--nb-border) !important;
+  background: #fffdfa !important;
+  color: var(--nb-text) !important;
+  box-shadow: none !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[data-testid="stPopover"] button:hover {
+  background: #fff7f2 !important;
+  border-color: var(--nb-accent) !important;
+  color: var(--nb-accent-strong) !important;
+  -webkit-text-fill-color: var(--nb-accent-strong) !important;
+}
+
+div[data-testid="stPopover"] button *,
+div[data-testid="stPopover"] button svg {
+  color: inherit !important;
+  fill: currentColor !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+div[data-testid="stPopoverBody"] {
+  min-width: 360px;
+  background: #fffdfa !important;
+  border: 1px solid var(--nb-border) !important;
+  box-shadow: var(--nb-shadow) !important;
+}
+
+div[data-testid="stPopoverBody"] > div,
+div[data-testid="stPopoverBody"] [data-testid="stVerticalBlock"],
+div[data-testid="stPopoverBody"] [data-testid="stHorizontalBlock"],
+div[data-testid="stPopoverBody"] [data-testid="stMarkdownContainer"],
+div[data-testid="stPopoverBody"] [data-testid="stText"],
+div[data-testid="stPopoverBody"] [data-testid="stCaptionContainer"],
+div[data-testid="stPopoverBody"] [data-testid="stColumn"],
+div[data-testid="stPopoverBody"] .element-container {
+  background: transparent !important;
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[data-testid="stPopoverBody"] p,
+div[data-testid="stPopoverBody"] div,
+div[data-testid="stPopoverBody"] span,
+div[data-testid="stPopoverBody"] label {
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[data-testid="stPopoverBody"] button {
+  background: #fffdfa !important;
+  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-border) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[data-testid="stPopoverBody"] button:hover {
+  border-color: var(--nb-accent) !important;
+  color: var(--nb-accent-strong) !important;
+  -webkit-text-fill-color: var(--nb-accent-strong) !important;
+}
+
+div[data-testid="stPopoverContent"] {
+  min-width: 360px;
+  background: #fffdfa !important;
+  border: 1px solid var(--nb-border) !important;
+  box-shadow: var(--nb-shadow) !important;
+}
+
+div[data-testid="stPopoverContent"] > div,
+div[data-testid="stPopoverContent"] [data-testid="stVerticalBlock"],
+div[data-testid="stPopoverContent"] [data-testid="stMarkdownContainer"],
+div[data-testid="stPopoverContent"] [data-testid="stText"],
+div[data-testid="stPopoverContent"] [data-testid="stCaptionContainer"],
+div[data-testid="stPopoverContent"] [data-testid="stColumn"] {
+  background: transparent !important;
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[data-testid="stPopoverContent"] p,
+div[data-testid="stPopoverContent"] div,
+div[data-testid="stPopoverContent"] span,
+div[data-testid="stPopoverContent"] label {
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[data-testid="stPopoverContent"] button {
+  background: #fffdfa !important;
+  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-border) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[data-testid="stPopoverContent"] button:hover {
+  border-color: var(--nb-accent) !important;
+  color: var(--nb-accent-strong) !important;
+  -webkit-text-fill-color: var(--nb-accent-strong) !important;
 }
 
 /* =========================================================
@@ -357,6 +479,16 @@ hr {
   min-height: 5.1rem;
 }
 
+.nb-card-link {
+  margin-top: 0.75rem;
+  font-size: 0.92rem;
+}
+
+.nb-card-link a {
+  color: var(--nb-accent-strong) !important;
+  text-decoration: underline !important;
+}
+
 .nb-rating-pill {
   border: 1px solid #e5cabd;
   background: var(--nb-accent-soft);
@@ -409,26 +541,90 @@ label,
 .stSelectbox label,
 .stMultiSelect label,
 .stTextInput label,
+.stTextArea label,
 div[data-testid="stWidgetLabel"] label,
 div[data-testid="stMarkdownContainer"] p {
   color: var(--nb-text) !important;
 }
 
 div[data-testid="stTextInput"] > div > div,
+div[data-testid="stTextArea"] > div > div,
 div[data-testid="stSelectbox"] > div > div,
 div[data-testid="stMultiSelect"] > div > div {
   border-radius: var(--nb-radius) !important;
 }
 
 div[data-testid="stTextInput"] input,
+div[data-testid="stTextArea"] textarea,
 div[data-testid="stSelectbox"] div[data-baseweb="select"],
 div[data-testid="stMultiSelect"] div[data-baseweb="select"] {
-  background: #fffdfa !important;
+  background: var(--nb-input-bg) !important;
   color: var(--nb-text) !important;
   border-radius: var(--nb-radius) !important;
+  border: 1px solid var(--nb-input-border) !important;
+}
+
+div[data-testid="InputInstructions"] {
+  display: none !important;
+}
+
+div[data-testid="stTextInput"]:has(input[type="password"]) input {
+  padding-right: 3.2rem !important;
+}
+
+div[data-testid="stTextInput"]:has(input[type="password"]) button,
+div[data-testid="stTextInput"]:has(input[type="password"]) [data-testid*="InputAction"],
+div[data-testid="stTextInput"]:has(input[type="password"]) [data-testid*="Password"] {
+  width: 2.6rem !important;
+  min-width: 2.6rem !important;
+  height: calc(100% - 2px) !important;
+  align-self: stretch !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--nb-input-bg) !important;
+  border: 0 !important;
+  border-left: 1px solid var(--nb-input-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 1px 1px 1px 0 !important;
+  padding: 0 !important;
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[data-testid="stTextInput"]:has(input[type="password"]) button:hover,
+div[data-testid="stTextInput"]:has(input[type="password"]) [data-testid*="InputAction"]:hover,
+div[data-testid="stTextInput"]:has(input[type="password"]) [data-testid*="Password"]:hover {
+  background: #fff1e8 !important;
+  color: var(--nb-accent-strong) !important;
+  -webkit-text-fill-color: var(--nb-accent-strong) !important;
+}
+
+div[data-testid="stTextInput"]:has(input[type="password"]) button svg,
+div[data-testid="stTextInput"]:has(input[type="password"]) [data-testid*="InputAction"] svg,
+div[data-testid="stTextInput"]:has(input[type="password"]) [data-testid*="Password"] svg {
+  fill: currentColor !important;
+  color: currentColor !important;
+}
+
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}
+
+input::-webkit-credentials-auto-fill-button,
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-strong-password-auto-fill-button,
+input::-webkit-textfield-decoration-container,
+input::-webkit-caps-lock-indicator {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 div[data-testid="stTextInput"] input::placeholder,
+div[data-testid="stTextArea"] textarea::placeholder,
 input::placeholder,
 textarea::placeholder {
   color: #8e857b !important;
@@ -436,27 +632,52 @@ textarea::placeholder {
 }
 
 div[data-testid="stTextInput"] input:focus,
+div[data-testid="stTextArea"] textarea:focus,
 div[data-testid="stSelectbox"] *:focus,
 div[data-testid="stMultiSelect"] *:focus {
   box-shadow: none !important;
   border-color: var(--nb-accent) !important;
 }
 
+div[data-testid="stTextArea"] textarea {
+  min-height: 120px;
+}
+
 div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
 div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
-  background: #fffdfa !important;
+  background: var(--nb-input-bg) !important;
   color: var(--nb-text) !important;
-  border-color: var(--nb-border) !important;
+  border-color: var(--nb-input-border) !important;
 }
 
 div[data-testid="stMultiSelect"] [data-baseweb="tag"] {
   background: var(--nb-accent) !important;
   color: #fff !important;
   border: 0 !important;
+  display: inline-grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: flex-start !important;
+  column-gap: 0.45rem !important;
+  max-width: min(10.5rem, 100%) !important;
+  min-height: 2.5rem !important;
+  padding: 0.42rem 0.58rem !important;
+  overflow: hidden !important;
 }
 
 div[data-testid="stMultiSelect"] [data-baseweb="tag"] span {
   color: #fff !important;
+  display: block !important;
+  max-width: 100% !important;
+  max-height: 2.75rem !important;
+  overflow: auto !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  line-height: 1.15 !important;
+  padding-right: 0.15rem !important;
+  scrollbar-width: thin;
+  overscroll-behavior: contain !important;
+  scrollbar-gutter: stable both-edges !important;
 }
 
 div[data-testid="stSelectbox"] svg,
@@ -474,15 +695,52 @@ div[data-testid="stMultiSelect"] [data-baseweb="tag"] svg {
 div[data-baseweb="popover"],
 div[role="listbox"],
 ul[role="listbox"] {
-  background: #fffdfa !important;
+  background: var(--nb-input-bg) !important;
+  background-color: var(--nb-input-bg) !important;
+  background-image: none !important;
   color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
+  border: 1px solid var(--nb-input-border) !important;
   box-shadow: var(--nb-shadow) !important;
+}
+
+div[data-baseweb="layer"] div[data-baseweb="popover"],
+div[data-baseweb="layer"] div[data-baseweb="popover"] *,
+div[data-baseweb="layer"] div[data-baseweb="menu"],
+div[data-baseweb="layer"] div[data-baseweb="menu"] *,
+div[data-baseweb="layer"] div[role="listbox"],
+div[data-baseweb="layer"] div[role="listbox"] *,
+div[data-baseweb="layer"] ul[role="listbox"],
+div[data-baseweb="layer"] ul[role="listbox"] * {
+  background-color: var(--nb-input-bg) !important;
+  background-image: none !important;
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+  border-color: var(--nb-input-border) !important;
+}
+
+div[data-baseweb="popover"] > div,
+div[data-baseweb="popover"] > ul,
+div[data-baseweb="popover"] [data-baseweb="menu"],
+div[data-baseweb="popover"] [data-baseweb="menu"] > div,
+div[data-baseweb="popover"] [data-baseweb="menu"] > ul,
+div[role="listbox"] > div,
+ul[role="listbox"] > div,
+ul[role="listbox"] > li {
+  background: var(--nb-input-bg) !important;
+  background-color: var(--nb-input-bg) !important;
+  color: var(--nb-text) !important;
+}
+
+div[data-baseweb="popover"] *,
+div[role="listbox"] *,
+ul[role="listbox"] * {
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
 }
 
 div[role="option"],
 li[role="option"] {
-  background: #fffdfa !important;
+  background: var(--nb-input-bg) !important;
   color: var(--nb-text) !important;
 }
 
@@ -603,6 +861,20 @@ div[data-testid="stAlert"][kind="warning"] {
   border-left: 4px solid #d9a25f !important;
 }
 
+div[data-baseweb="tooltip"],
+div[role="tooltip"] {
+  background: #fff6ef !important;
+  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-input-border) !important;
+  box-shadow: var(--nb-shadow) !important;
+}
+
+div[data-baseweb="tooltip"] *,
+div[role="tooltip"] * {
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
 div[data-testid="stAlert"][kind="error"] {
   border-left: 4px solid #d96558 !important;
 }
@@ -652,13 +924,26 @@ div[role="dialog"] div {
 }
 
 div[role="dialog"] input {
-  background: #fffdfa !important;
+  background: var(--nb-input-bg) !important;
   color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
+  border: 1px solid var(--nb-input-border) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+}
+
+div[role="dialog"] textarea,
+div[role="dialog"] div[data-baseweb="select"] {
+  background: var(--nb-input-bg) !important;
+  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-input-border) !important;
   -webkit-text-fill-color: var(--nb-text) !important;
 }
 
 div[role="dialog"] input::placeholder {
+  color: #8e857b !important;
+  opacity: 1 !important;
+}
+
+div[role="dialog"] textarea::placeholder {
   color: #8e857b !important;
   opacity: 1 !important;
 }
@@ -706,53 +991,224 @@ div[role="dialog"] span {
   max-width: 100%;
 }
 
+.nb-review-item {
+  padding: 0.15rem 0;
+}
+
+.nb-review-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.18rem;
+}
+
+.nb-review-author {
+  font-weight: 600;
+  color: var(--nb-text);
+}
+
+.nb-review-rating {
+  color: var(--nb-accent-strong);
+  font-weight: 700;
+}
+
+.nb-rating-input-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.8rem;
+  margin-top: 1.85rem;
+  font-size: 1.25rem;
+  color: var(--nb-accent-strong);
+}
+
+.nb-review-date {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  font-size: 0.88rem;
+  color: var(--nb-muted);
+}
+
 div[role="dialog"] [data-testid="stVerticalBlock"] {
   max-width: 100%;
 }
 
-/* =========================================================
-   Location bar
-   ========================================================= */
-
-div[data-testid="stVerticalBlock"]:has(.nb-location-bar-anchor) {
-  border: 1px solid var(--nb-border);
-  background: var(--nb-surface);
-  padding: 0.9rem 1rem;
-  margin: 0.25rem 0 0.8rem 0;
-  box-shadow: var(--nb-shadow);
-}
-
-.nb-location-bar-anchor {
+.nb-comments-form-anchor,
+.nb-recommendation-form-anchor,
+.nb-secret-question-anchor,
+.nb-discover-filter-anchor {
   height: 1px;
 }
 
-.nb-location-bar-copy {
+div[data-testid="stVerticalBlock"]:has(.nb-discover-filter-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"],
+div[data-testid="stVerticalBlock"]:has(.nb-discover-filter-anchor) div[data-testid="stMultiSelect"] [data-baseweb="select"],
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-discover-filter-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"],
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-discover-filter-anchor) div[data-testid="stMultiSelect"] [data-baseweb="select"] {
+  position: relative !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-discover-filter-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"] input,
+div[data-testid="stVerticalBlock"]:has(.nb-discover-filter-anchor) div[data-testid="stMultiSelect"] [data-baseweb="select"] input,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-discover-filter-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"] input,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-discover-filter-anchor) div[data-testid="stMultiSelect"] [data-baseweb="select"] input {
+  position: absolute !important;
+  left: 0.9rem !important;
+  top: 50% !important;
+  width: 1px !important;
+  min-width: 1px !important;
+  max-width: 1px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  opacity: 0 !important;
+  caret-color: transparent !important;
+  pointer-events: none !important;
+  appearance: none !important;
+  transform: translateY(-50%) !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-secret-question-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"] input,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-secret-question-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"] input {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  flex: 0 0 0 !important;
+  caret-color: transparent !important;
+  pointer-events: none !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-secret-question-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"] > div,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-secret-question-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
+  gap: 0 !important;
+}
+
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stTextInput"] input,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stTextArea"] textarea,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stSelectbox"] div[data-baseweb="select"],
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stMultiSelect"] div[data-baseweb="select"],
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stTextInput"] input,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stTextArea"] textarea,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stSelectbox"] div[data-baseweb="select"],
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stMultiSelect"] div[data-baseweb="select"],
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stTextInput"] input,
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stTextArea"] textarea,
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stSelectbox"] div[data-baseweb="select"],
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stMultiSelect"] div[data-baseweb="select"] {
+  background: #fff5ef !important;
+  border: 1px solid #e7cec3 !important;
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+  box-shadow: none !important;
+}
+
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stTextInput"] input::placeholder,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stTextArea"] textarea::placeholder,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stTextInput"] input::placeholder,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stTextArea"] textarea::placeholder,
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stTextInput"] input::placeholder,
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stTextArea"] textarea::placeholder {
+  color: #9a8172 !important;
+  opacity: 1 !important;
+}
+
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"] input,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stMultiSelect"] [data-baseweb="select"] input,
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div,
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"] input,
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stMultiSelect"] [data-baseweb="select"] input,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stSelectbox"] [data-baseweb="select"] input,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stMultiSelect"] [data-baseweb="select"] input {
+  background: transparent !important;
+  color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-text) !important;
+  border-color: transparent !important;
+}
+
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stSelectbox"] svg,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-comments-form-anchor) div[data-testid="stMultiSelect"] svg,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stSelectbox"] svg,
+div[role="dialog"] [data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stMultiSelect"] svg,
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stSelectbox"] svg,
+div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-testid="stMultiSelect"] svg {
+  fill: var(--nb-text) !important;
+  color: var(--nb-text) !important;
+}
+
+/* =========================================================
+   Location
+   ========================================================= */
+
+.nb-location-inline-anchor {
+  height: 1px;
+}
+
+.nb-location-inline {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 56px;
+  min-height: 44px;
 }
 
-.nb-location-bar-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--nb-text);
-  line-height: 1.25;
-}
-
-.nb-location-bar-subtitle {
-  margin-top: 0.22rem;
-  font-size: 0.92rem;
+.nb-location-inline-label {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
   color: var(--nb-muted);
 }
 
-div[data-testid="stVerticalBlock"]:has(.nb-location-bar-anchor) button {
-  min-height: 56px !important;
+.nb-location-inline-value {
+  margin-top: 0.18rem;
+  color: var(--nb-text);
 }
 
-div[data-testid="stVerticalBlock"]:has(.nb-location-bar-anchor) [data-testid="stHorizontalBlock"] > div:first-child {
+.nb-location-inline-value strong {
+  font-weight: 700;
+  color: var(--nb-text);
+}
+
+.nb-location-inline-area {
+  margin-top: 0.18rem;
+  font-size: 0.9rem;
+  color: var(--nb-muted);
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-location-inline-anchor) [data-testid="stCustomComponentV1"] {
   display: flex;
-  align-items: center;
+  justify-content: center;
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-location-inline-anchor) [data-testid="stCustomComponentV1"] iframe {
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: hidden !important;
+  display: block !important;
 }
 
 /* =========================================================

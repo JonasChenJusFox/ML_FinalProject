@@ -71,9 +71,5 @@ def render_map(restaurants: list[dict]) -> None:
     if clicked and clicked != st.session_state.get("focus_business_id"):
         st.session_state.focus_business_id = clicked
         st.session_state.jump_to_business_id = clicked
-
-        # Do not directly modify discover_query here after widgets exist.
-        # Let discover.py clear filters on the next rerun before widget creation.
-        st.session_state.pending_discover_reset = True
         st.session_state.page = "Discover"
         st.rerun()

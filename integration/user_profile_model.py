@@ -2,13 +2,8 @@
 
 from __future__ import annotations
 
+from integration.price_utils import canonicalize_price_label, price_level_value
 
-PRICE_TO_LEVEL = {
-    "$": 1,
-    "$$": 2,
-    "$$$": 3,
-    "$$$$": 4,
-}
 
 TRAVEL_TO_MAX_KM = {
     "Walking distance (< 10 min / ~0.5 mi)": 0.8,
@@ -59,7 +54,7 @@ def normalize_answers(raw_answers: dict) -> dict:
     aspirational = _clean_list(answers.get("aspirational_restaurants", []))
 
     novelty = str(answers.get("novelty_preference", "")).strip().lower()
-    price_symbol = str(answers.get("price_comfort_level", "$$")).strip() or "$$"
+    price_label = canonicalize_price_label(answers.get("price_comfort_level", "moderate")) or "moderate"
     adventurousness = answers.get("adventurousness", 3)
 
     try:
@@ -76,8 +71,8 @@ def normalize_answers(raw_answers: dict) -> dict:
         "cuisine_pref": [item.lower() for item in top_cuisines],
         "craving_tags": [item.lower() for item in cravings],
         "price_level": {
-            "symbol": price_symbol,
-            "numeric": PRICE_TO_LEVEL.get(price_symbol, 2),
+            "label": price_label,
+            "numeric": int(round(price_level_value(price_label) or 2.0)),
         },
         "vibe_tags": [item.lower() for item in vibes],
         "dietary_tags": [item.lower() for item in dietary if item.lower() != "none"],
@@ -119,7 +114,7 @@ def build_profile_text(raw_answers: dict) -> str:
         if isinstance(value, list) and value:
             parts.append(f"{key}: " + ", ".join(str(item).strip() for item in value if str(item).strip()))
 
-    price = str(answers.get("price_comfort_level", "$$")).strip() or "$$"
+    price = canonicalize_price_label(answers.get("price_comfort_level", "moderate")) or "moderate"
     travel = str(answers.get("travel_willingness", "")).strip()
     company = str(answers.get("dining_company", "")).strip()
     novelty = str(answers.get("novelty_preference", "")).strip()

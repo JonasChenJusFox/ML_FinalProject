@@ -111,7 +111,7 @@ This document describes what is currently implemented in this repository as of t
   "profile_text": "top_cuisines: Japanese, Thai, Italian | ...",
   "latest_embedding": {
     "vector": [0.01, -0.03, 0.08],
-    "model_name": "multi-qa-MiniLM-L6-cos-v1",
+    "model_name": "sentence-transformers/multi-qa-mpnet-base-cos-v1",
     "updated_at": "2026-04-18T..."
   },
   "updated_at": "2026-04-18T..."
@@ -261,7 +261,7 @@ This document describes what is currently implemented in this repository as of t
 {
   "latest_embedding": {
     "vector": [0.023, -0.051, 0.094],
-    "model_name": "multi-qa-MiniLM-L6-cos-v1",
+    "model_name": "sentence-transformers/multi-qa-mpnet-base-cos-v1",
     "updated_at": "2026-04-18T19:05:36.272560"
   }
 }
@@ -341,7 +341,7 @@ This document describes what is currently implemented in this repository as of t
       "raw_answers": {"top_cuisines": ["Japanese"]},
       "normalized_features": {"cuisine_pref": ["japanese"]},
       "profile_text": "top_cuisines: Japanese | ...",
-      "latest_embedding": {"vector": [0.01], "model_name": "multi-qa-MiniLM-L6-cos-v1", "updated_at": "2026-04-18T..."},
+      "latest_embedding": {"vector": [0.01], "model_name": "sentence-transformers/multi-qa-mpnet-base-cos-v1", "updated_at": "2026-04-18T..."},
       "updated_at": "2026-04-18T..."
     }
   ],

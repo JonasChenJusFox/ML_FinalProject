@@ -19,22 +19,23 @@ import streamlit as st
 
 from frontend.adapters import get_filter_options
 from frontend.auth import init_auth_state
+from frontend.components.account_security_modal import render_account_security_modal
 from frontend.components.comments_modal import render_comments_modal
 from frontend.components.forgot_password_modal import render_forgot_password_modal
 from frontend.components.login_modal import render_login_modal
 from frontend.components.nav import render_nav
+from frontend.components.questionnaire_modal import render_questionnaire_modal
 from frontend.components.signup_modal import render_signup_modal
 from frontend.views.discover import render_discover
 from frontend.views.home import render_home
 from frontend.views.profile import render_profile
-from frontend.views.recommendation import render_recommendation
 
 PAGE_RENDERERS = {
     "Home": render_home,
     "Discover": render_discover,
     "Profile": render_profile,
-    "Recommendation": render_recommendation,
 }
+PREVIEW_RESTAURANTS_LIMIT = 200
 
 
 def render_app(search_callable: Callable | None, preview_restaurants: list[dict]) -> None:
@@ -44,8 +45,10 @@ def render_app(search_callable: Callable | None, preview_restaurants: list[dict]
     """
     init_auth_state()
 
-    st.session_state.preview_restaurants = (
-        preview_restaurants or st.session_state.get("preview_restaurants", [])
+    st.session_state.preview_restaurants = list(
+        (preview_restaurants or st.session_state.get("preview_restaurants", []))[
+            :PREVIEW_RESTAURANTS_LIMIT
+        ]
     )
     st.session_state.filter_options = get_filter_options(
         st.session_state.preview_restaurants
@@ -55,6 +58,8 @@ def render_app(search_callable: Callable | None, preview_restaurants: list[dict]
     render_login_modal()
     render_signup_modal()
     render_forgot_password_modal()
+    render_account_security_modal()
+    render_questionnaire_modal()
     render_comments_modal()
 
     current_page = render_nav()

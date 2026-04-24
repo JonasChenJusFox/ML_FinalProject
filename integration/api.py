@@ -22,8 +22,8 @@ from data.pipeline import load_restaurants, load_user_interactions
 from embeddings.cluster_retrieval import load_centroids, load_restaurant_index, retrieve_candidates
 from embeddings.vectorizer import (
     build_restaurant_index,
+    embed_profile,
     embed_query,
-    embed_user,
     retrieve_top_k,
 )
 from recommendation.ranker import apply_filters, fuse_vectors, rank_candidates
@@ -160,7 +160,7 @@ def _apply_borough_filter(restaurants: list[dict], borough: str | None) -> list[
 def _build_user_embedding_if_available(user_id: str) -> list[float] | None:
     """Build user embedding with three-tier fallback:
     1. Stored latest_embedding from profile (fastest)
-    2. Rebuild from profile_text and persist
+    2. Rebuild from raw_answers/profile_text and persist
     3. Build from interaction history (for users without a profile)
     """
     if not user_id or user_id == "anonymous":
@@ -177,10 +177,19 @@ def _build_user_embedding_if_available(user_id: str) -> list[float] | None:
                     and model == "sentence-transformers/multi-qa-mpnet-base-cos-v1"):
                 return vector
 
+        raw_answers = profile.get("raw_answers")
         user_document = str(profile.get("profile_text", "")).strip()
-        if user_document:
+        if isinstance(raw_answers, dict) and raw_answers:
             try:
-                vector = embed_user(user_document)
+                vector = embed_profile(raw_answers)
+                if isinstance(vector, list) and vector:
+                    update_latest_embedding(user_id, vector)
+                    return vector
+            except Exception:
+                pass
+        elif user_document:
+            try:
+                vector = embed_query(user_document)
                 if isinstance(vector, list) and vector:
                     update_latest_embedding(user_id, vector)
                     return vector
@@ -208,7 +217,7 @@ def _build_user_embedding_if_available(user_id: str) -> list[float] | None:
         return None
 
     try:
-        return embed_user(" ".join(tags + actions))
+        return embed_query(" ".join(tags + actions))
     except Exception:
         return None
 

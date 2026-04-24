@@ -121,6 +121,7 @@ def render_home(restaurants: list[dict]) -> None:
             ranked = _frontend_home_fallback(restaurants)
         section_title = "Recommended restaurants"
 
+    showing_nearby = user_id == "anonymous"
     st.markdown(
         f"<div class='nb-section-title'>{section_title}</div>",
         unsafe_allow_html=True,

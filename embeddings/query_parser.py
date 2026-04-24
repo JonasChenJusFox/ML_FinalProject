@@ -251,8 +251,8 @@ def _load_default_location_keywords() -> dict:
     """
     repo_root = Path(__file__).resolve().parent.parent
     candidate_paths = (
-        repo_root / "data" / "location_keywords.json",
-        repo_root / "data" / "neighborhood_to_borough_nyc.json",
+        repo_root / "data" / "nyc_location_keyword_map.json",
+        repo_root / "config" / "neighborhood_to_borough_nyc.json",
     )
 
     for path in candidate_paths:

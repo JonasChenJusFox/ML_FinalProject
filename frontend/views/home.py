@@ -121,6 +121,7 @@ def render_home(restaurants: list[dict]) -> None:
             ranked = _frontend_home_fallback(restaurants)
         section_title = "Recommended restaurants"
 
+    showing_nearby = user_id == "anonymous"
     st.markdown(
         f"<div class='nb-section-title'>{section_title}</div>",
         unsafe_allow_html=True,
@@ -132,5 +133,6 @@ def render_home(restaurants: list[dict]) -> None:
 
     cols = st.columns(2, gap="large")
     for idx, item in enumerate(ranked[:10]):
+    for idx, item in enumerate(ordered[:10]):
         with cols[idx % 2]:
             render_restaurant_card(item, key_prefix=f"home_{idx}")

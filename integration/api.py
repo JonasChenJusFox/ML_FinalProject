@@ -15,11 +15,12 @@ Responsibilities:
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
 from data.pipeline import load_restaurants, load_user_interactions
 from embeddings.cluster_retrieval import load_centroids, load_restaurant_index, retrieve_candidates
+from embeddings.query_parser import parse_query, minimal_clean_query
+from embeddings.location_lookup import resolve_location_coordinate
 from embeddings.vectorizer import (
     build_restaurant_index,
     embed_query,
@@ -42,6 +43,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 RESTAURANT_EMBEDDINGS_PATH = REPO_ROOT / "data" / "restaurant_embeddings.json"
 CLUSTER_CENTROIDS_PATH = REPO_ROOT / "data" / "cluster_centroids.json"
 PERSONALIZATION_ALPHA = 0.3
+DEFAULT_NEARBY_DISTANCE_KM = 5.0
+WALKING_SPEED_KMPH = 5.0
 
 
 def _safe_float(value, default: float = 0.0) -> float:
@@ -51,17 +54,48 @@ def _safe_float(value, default: float = 0.0) -> float:
         return default
 
 
-def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    radius_km = 6371.0
-    p1 = math.radians(lat1)
-    p2 = math.radians(lat2)
-    dp = math.radians(lat2 - lat1)
-    dl = math.radians(lon2 - lon1)
-    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * radius_km * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+def manhattan_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Approximate NYC walking distance using Manhattan-style blocks.
+
+    Formula:
+      lat_distance_km = abs(lat1 - lat2) * 111
+      lon_distance_km = abs(lon1 - lon2) * 85
+      distance_km = lat_distance_km + lon_distance_km
+    """
+    lat_distance_km = abs(lat1 - lat2) * 111.0
+    lon_distance_km = abs(lon1 - lon2) * 85.0
+    return lat_distance_km + lon_distance_km
 
 
-def _with_distance_km(restaurants: list[dict]) -> list[dict]:
+def walking_minutes_from_distance_km(distance_km: float | None) -> int | None:
+    """Convert distance in km to walking minutes at 5 km/h."""
+    if distance_km is None:
+        return None
+    distance_value = max(0.0, _safe_float(distance_km, 0.0))
+    return max(1, int(round((distance_value / WALKING_SPEED_KMPH) * 60.0)))
+
+
+# Backward-compatible alias for existing imports in frontend modules.
+haversine_km = manhattan_distance_km
+
+
+def _with_distance_km(restaurants: list[dict], origin_lat: float | None = None, origin_lon: float | None = None) -> list[dict]:
+    """Calculate distance from origin coordinates to each restaurant.
+    
+    Args:
+        restaurants: List of restaurant dicts to enrich with distance_km
+        origin_lat: Latitude of origin (defaults to NYU_LAT if not provided)
+        origin_lon: Longitude of origin (defaults to NYU_LON if not provided)
+    
+    Returns:
+        List of restaurants with added/updated distance_km field
+    """
+    # Use provided origin or fall back to NYU
+    if origin_lat is None:
+        origin_lat = NYU_LAT
+    if origin_lon is None:
+        origin_lon = NYU_LON
+    
     enriched: list[dict] = []
     for restaurant in restaurants:
         item = dict(restaurant)
@@ -69,9 +103,11 @@ def _with_distance_km(restaurants: list[dict]) -> list[dict]:
         lat = _safe_float(item.get("latitude") or coords.get("latitude"), 0.0)
         lon = _safe_float(item.get("longitude") or coords.get("longitude"), 0.0)
         if lat and lon:
-            item["distance_km"] = haversine_km(NYU_LAT, NYU_LON, lat, lon)
+            item["distance_km"] = manhattan_distance_km(origin_lat, origin_lon, lat, lon)
+            item["travel_minutes"] = walking_minutes_from_distance_km(item["distance_km"])
         else:
             item["distance_km"] = None
+            item["travel_minutes"] = None
         enriched.append(item)
     return enriched
 
@@ -81,7 +117,11 @@ def _rank_by_location_and_rating(
     filters: dict,
     top_k: int,
 ) -> list[dict]:
-    ranked = _with_distance_km(restaurants)
+    # Extract origin coordinates from filters if available, else use NYU
+    origin_lat = _safe_float(filters.get("origin_lat"), NYU_LAT)
+    origin_lon = _safe_float(filters.get("origin_lon"), NYU_LON)
+    
+    ranked = _with_distance_km(restaurants, origin_lat, origin_lon)
     ranked = apply_filters(ranked, filters)
     ranked = _apply_borough_filter(ranked, filters.get("borough"))
 
@@ -123,6 +163,7 @@ def _adapt_filters(filters: dict | None) -> dict:
     prices = (
         filters.get("price")
         or filters.get("prices")
+        or filters.get("price_levels")
         or filters.get("discover_prices")
         or []
     )
@@ -134,7 +175,7 @@ def _adapt_filters(filters: dict | None) -> dict:
     max_distance_km = filters.get("max_distance_km")
     if max_distance_km is None and filters.get("discover_radius_minutes") is not None:
         try:
-            max_distance_km = float(filters.get("discover_radius_minutes", 0)) * 0.33
+            max_distance_km = float(filters.get("discover_radius_minutes", 0)) * (WALKING_SPEED_KMPH / 60.0)
         except (TypeError, ValueError):
             max_distance_km = None
 
@@ -142,13 +183,76 @@ def _adapt_filters(filters: dict | None) -> dict:
     if borough is None:
         borough = filters.get("discover_borough", "All")
 
+    origin_lat = filters.get("origin_lat")
+    origin_lon = filters.get("origin_lon")
+
     return {
         "cuisines": list(cuisines) if isinstance(cuisines, list) else [],
         "price": list(prices) if isinstance(prices, list) else [],
         "min_rating": min_rating,
         "max_distance_km": max_distance_km,
         "borough": borough,
+        "origin_lat": origin_lat,
+        "origin_lon": origin_lon,
     }
+
+
+def _normalize_borough_name(location: str | None) -> str | None:
+    if not location:
+        return None
+
+    borough_aliases = {
+        "manhattan": "Manhattan",
+        "brooklyn": "Brooklyn",
+        "queens": "Queens",
+        "bronx": "Bronx",
+        "staten island": "Staten_Island",
+        "staten_island": "Staten_Island",
+    }
+    normalized_location = str(location).strip().replace("_", " ").lower()
+    return borough_aliases.get(normalized_location)
+
+
+def _merge_query_signals(filters: dict, parsed_query: dict[str, object]) -> dict:
+    """Merge parsed query signals into filters, resolving location to coordinates if available."""
+    merged = dict(filters)
+
+    parsed_price = parsed_query.get("price")
+    if isinstance(parsed_price, str) and parsed_price and parsed_price != "unknown" and not merged.get("price"):
+        merged["price"] = [parsed_price]
+
+    # Extract parsed location and try to resolve to coordinates
+    parsed_location = parsed_query.get("location")
+    if isinstance(parsed_location, str) and parsed_location:
+        # Try to resolve location to coordinates (neighborhood -> centroid, keyword -> neighborhood -> centroid)
+        coords = resolve_location_coordinate(parsed_location)
+        if coords:
+            # Store origin coordinates for distance calculation
+            origin_lat, origin_lon = coords
+            if merged.get("origin_lat") is None:
+                merged["origin_lat"] = origin_lat
+            if merged.get("origin_lon") is None:
+                merged["origin_lon"] = origin_lon
+        
+        # Also normalize to borough for filtering (fallback/additional)
+        borough = _normalize_borough_name(parsed_location)
+        if borough and (not merged.get("borough") or merged.get("borough") == "All"):
+            merged["borough"] = borough
+
+    distance_intent = parsed_query.get("distance_time_intent")
+    if isinstance(distance_intent, dict) and merged.get("max_distance_km") is None:
+        max_distance_km = distance_intent.get("max_km")
+        if max_distance_km is None:
+            max_minutes = distance_intent.get("max_minutes")
+            if isinstance(max_minutes, (int, float)):
+                max_distance_km = float(max_minutes) * (WALKING_SPEED_KMPH / 60.0)
+            elif distance_intent.get("near_me"):
+                max_distance_km = DEFAULT_NEARBY_DISTANCE_KM
+
+        if max_distance_km is not None:
+            merged["max_distance_km"] = max_distance_km
+
+    return merged
 
 
 def _apply_borough_filter(restaurants: list[dict], borough: str | None) -> list[dict]:
@@ -300,6 +404,7 @@ def search_restaurants(
         filters: Structured filter dict from the UI sidebar.
         user_id: Current user ID (for personalization). Defaults to anonymous.
         top_k:   Max number of results to return.
+        user_vector_only: If True, ignore query and use only user vector (recommendation mode).
 
     Returns:
         Ordered list of restaurant dicts (best match first).
@@ -311,11 +416,36 @@ def search_restaurants(
     # Step 1: load existing user embedding if available
     user_vector = _build_user_embedding_if_available(user_id)
     adapted_filters = _adapt_filters(filters)
+    user_origin_provided = (
+        adapted_filters.get("origin_lat") is not None
+        and adapted_filters.get("origin_lon") is not None
+    )
 
     # Mode split:
     # - recommendation mode: empty query -> user vector only (or location fallback)
-    # - search mode: non-empty query -> embed query + fuse with user vector
+    # - search mode: non-empty query -> parse query, then embed full query + fuse with user vector
     use_recommendation_mode = user_vector_only or not query_text
+    parsed_query = None
+    embedding_query_text = query_text
+
+    if not use_recommendation_mode:
+        # Parse structured signals for filtering and ranking
+        parsed_query = parse_query(query_text)
+        # Use minimally cleaned full query for embedding to preserve semantic content
+        embedding_query_text = minimal_clean_query(query_text)
+        # Merge structured signals into filters
+        adapted_filters = _merge_query_signals(adapted_filters, parsed_query)
+
+    has_resolved_origin = (
+        adapted_filters.get("origin_lat") is not None
+        and adapted_filters.get("origin_lon") is not None
+    )
+    if user_origin_provided:
+        print("Using user-provided origin")
+    elif has_resolved_origin:
+        print("Using query-parsed origin")
+    else:
+        print("Using NYU fallback")
 
     if use_recommendation_mode:
         if user_vector is None:
@@ -329,14 +459,17 @@ def search_restaurants(
         query_vector = [0.0] * len(user_vector)
         fused_vector = fuse_vectors(query_vector, user_vector, alpha=1.0)
     else:
-        query_vector = embed_query(query_text)
+        query_vector = embed_query(embedding_query_text)
         fused_vector = fuse_vectors(query_vector, user_vector, alpha=PERSONALIZATION_ALPHA)
 
     # Step 3: retrieve semantic candidates (cluster-first, then within-cluster search)
     candidates = _retrieve_candidates_cluster_first(fused_vector, k=requested_top_k * 3)
 
     # Step 4: apply structured filters
-    candidate_restaurants = _with_distance_km([r for r, _ in candidates])
+    # Extract origin coordinates from adapted_filters if available (set by _merge_query_signals)
+    origin_lat = _safe_float(adapted_filters.get("origin_lat"), NYU_LAT)
+    origin_lon = _safe_float(adapted_filters.get("origin_lon"), NYU_LON)
+    candidate_restaurants = _with_distance_km([r for r, _ in candidates], origin_lat, origin_lon)
     filtered = apply_filters(candidate_restaurants, adapted_filters)
     filtered = _apply_borough_filter(filtered, adapted_filters.get("borough"))
 
@@ -346,7 +479,7 @@ def search_restaurants(
         for restaurant, score in candidates
         if isinstance(restaurant, dict)
     }
-    
+
     filtered_with_scores = [
         (restaurant, score_map.get(str(restaurant.get("business_id", "")), 0.0))
         for restaurant in filtered
@@ -372,107 +505,8 @@ def debug_compare_queries(
     filters: dict | None = None,
     top_k: int = 5,
 ) -> dict:
-    """Print and return top results for two queries under the same user."""
-    results_a = search_restaurants(
-        query=query_a,
-        filters=filters,
-        user_id=user_id,
-        top_k=top_k,
-        user_vector_only=False,
-    )
-    results_b = search_restaurants(
-        query=query_b,
-        filters=filters,
-        user_id=user_id,
-        top_k=top_k,
-        user_vector_only=False,
-    )
-
-    ids_a = [str(item.get("business_id", "")) for item in results_a]
-    ids_b = [str(item.get("business_id", "")) for item in results_b]
-    names_a = [str(item.get("name", "")) for item in results_a]
-    names_b = [str(item.get("name", "")) for item in results_b]
-    overlap = sorted(set(ids_a) & set(ids_b))
-
-    print(f"[debug_compare_queries] user={user_id}")
-    print(f"query_a={query_a!r} -> {names_a}")
-    print(f"query_b={query_b!r} -> {names_b}")
-    print(f"overlap_count={len(overlap)} overlap_ids={overlap}")
-
+    """Debug helper: compare semantic relevance of two queries."""
     return {
-        "user_id": user_id,
-        "query_a": query_a,
-        "query_b": query_b,
-        "top_k": top_k,
-        "ids_a": ids_a,
-        "ids_b": ids_b,
-        "names_a": names_a,
-        "names_b": names_b,
-        "overlap_ids": overlap,
-        "overlap_count": len(overlap),
+        "query_a": search_restaurants(query_a, filters, user_id, top_k),
+        "query_b": search_restaurants(query_b, filters, user_id, top_k),
     }
-
-
-def debug_compare_users_same_query(
-    user_a: str,
-    user_b: str,
-    query: str,
-    filters: dict | None = None,
-    top_k: int = 5,
-) -> dict:
-    """Print and return top results for the same query under two different users."""
-    results_a = search_restaurants(
-        query=query,
-        filters=filters,
-        user_id=user_a,
-        top_k=top_k,
-        user_vector_only=False,
-    )
-    results_b = search_restaurants(
-        query=query,
-        filters=filters,
-        user_id=user_b,
-        top_k=top_k,
-        user_vector_only=False,
-    )
-
-    ids_a = [str(item.get("business_id", "")) for item in results_a]
-    ids_b = [str(item.get("business_id", "")) for item in results_b]
-    names_a = [str(item.get("name", "")) for item in results_a]
-    names_b = [str(item.get("name", "")) for item in results_b]
-    overlap = sorted(set(ids_a) & set(ids_b))
-
-    print(f"[debug_compare_users_same_query] query={query!r}")
-    print(f"user_a={user_a} -> {names_a}")
-    print(f"user_b={user_b} -> {names_b}")
-    print(f"overlap_count={len(overlap)} overlap_ids={overlap}")
-
-    return {
-        "query": query,
-        "user_a": user_a,
-        "user_b": user_b,
-        "top_k": top_k,
-        "ids_a": ids_a,
-        "ids_b": ids_b,
-        "names_a": names_a,
-        "names_b": names_b,
-        "overlap_ids": overlap,
-        "overlap_count": len(overlap),
-    }
-
-
-def get_restaurant_by_id(business_id: str) -> dict | None:
-    """
-    Fetch a single restaurant by its Yelp business ID.
-
-    Args:
-        business_id: Yelp business ID string.
-
-    Returns:
-        Restaurant dict, or None if not found.
-    """
-    _, restaurants = _get_index()
-    for r in restaurants:
-        if r.get("business_id") == business_id:
-            return r
-    return None

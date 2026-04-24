@@ -17,7 +17,12 @@ from collections import Counter
 
 import streamlit as st
 
-from integration.api import NYU_LAT, NYU_LON, haversine_km as _haversine_km
+from integration.api import (
+    NYU_LAT,
+    NYU_LON,
+    manhattan_distance_km as _manhattan_distance_km,
+    walking_minutes_from_distance_km as _walking_minutes_from_distance_km,
+)
 
 
 def clean_text(value: str) -> str:
@@ -75,10 +80,9 @@ def _minutes_from_current_origin(lat: float, lon: float) -> int:
         return 0
 
     origin = get_current_origin()
-    km = _haversine_km(origin["lat"], origin["lon"], lat, lon)
-
-    # loose product-style estimate
-    return max(5, round(km / 0.33))
+    km = _manhattan_distance_km(origin["lat"], origin["lon"], lat, lon)
+    minutes = _walking_minutes_from_distance_km(km)
+    return int(minutes or 0)
 
 
 def _extract_review_snippet(reviews: list) -> str:
@@ -177,6 +181,21 @@ def normalize_restaurant(raw: dict) -> dict:
     lat = _safe_float(raw.get("latitude") or coords.get("latitude"), 0.0)
     lon = _safe_float(raw.get("longitude") or coords.get("longitude"), 0.0)
 
+    backend_distance_km = raw.get("distance_km")
+    normalized_distance_km = (
+        _safe_float(backend_distance_km, 0.0)
+        if backend_distance_km is not None
+        else None
+    )
+
+    backend_travel_minutes = raw.get("travel_minutes")
+    if backend_travel_minutes is not None:
+        travel_minutes = int(_safe_float(backend_travel_minutes, 0.0))
+    elif normalized_distance_km is not None:
+        travel_minutes = int(_walking_minutes_from_distance_km(normalized_distance_km) or 0)
+    else:
+        travel_minutes = _minutes_from_current_origin(lat, lon)
+
     return {
     "business_id": clean_text(raw.get("business_id", "")),
     "name": clean_text(raw.get("name", "Unknown")),
@@ -197,7 +216,8 @@ def normalize_restaurant(raw: dict) -> dict:
     "google_reviews": reviews,
     "url": clean_text(raw.get("url", "")),
     "score": _safe_float(raw.get("score", 0.0)),
-    "travel_minutes": _minutes_from_current_origin(lat, lon),
+    "distance_km": normalized_distance_km,
+    "travel_minutes": travel_minutes,
 }
 
 

@@ -37,6 +37,36 @@ def _extract_category_strings(restaurant: dict[str, Any]) -> set[str]:
     return extracted
 
 
+def _normalize_price_level(value: Any) -> float:
+    """Normalize price labels or dollar strings to a comparable level."""
+    if value is None:
+        return 0.0
+
+    text = str(value).strip().lower()
+    if not text:
+        return 0.0
+
+    named_levels = {
+        "cheap": 1.0,
+        "moderate": 2.0,
+        "expensive": 3.0,
+        "luxury": 4.0,
+        "unknown": 0.0,
+    }
+    if text in named_levels:
+        return named_levels[text]
+
+    dollar_level = price_level_value(text)
+    if dollar_level > 0.0:
+        return min(4.0, dollar_level)
+
+    numeric_level = to_float(text, 0.0)
+    if numeric_level > 0.0:
+        return min(4.0, numeric_level)
+
+    return 0.0
+
+
 def apply_filters(candidates: list[dict[str, Any]], filters: dict[str, Any]) -> list[dict[str, Any]]:
     """Apply lightweight structured filtering to candidate restaurants."""
     if not candidates:
@@ -45,9 +75,9 @@ def apply_filters(candidates: list[dict[str, Any]], filters: dict[str, Any]) -> 
         return list(candidates)
 
     allowed_prices = {
-        str(price).strip().lower()
+        _normalize_price_level(price)
         for price in filters.get("price", [])
-        if isinstance(price, str) and price.strip()
+        if _normalize_price_level(price) > 0.0
     }
     required_categories = {
         str(category).strip().lower()
@@ -63,7 +93,7 @@ def apply_filters(candidates: list[dict[str, Any]], filters: dict[str, Any]) -> 
             continue
 
         if allowed_prices:
-            restaurant_price = str(restaurant.get("price", "")).strip().lower()
+            restaurant_price = _normalize_price_level(restaurant.get("price"))
             if restaurant_price not in allowed_prices:
                 continue
 

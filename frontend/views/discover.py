@@ -184,6 +184,18 @@ def render_discover(restaurants: list[dict]) -> None:
         "discover_prices": st.session_state.get("discover_prices", []),
         "discover_min_rating": float(st.session_state.get("discover_min_rating", 4.0)),
         "discover_radius_minutes": int(st.session_state.get("discover_radius_minutes", 30)),
+        "origin_lat": (
+            float(st.session_state.get("user_lat"))
+            if st.session_state.get("use_my_location", False)
+            and st.session_state.get("user_lat") is not None
+            else None
+        ),
+        "origin_lon": (
+            float(st.session_state.get("user_lon"))
+            if st.session_state.get("use_my_location", False)
+            and st.session_state.get("user_lon") is not None
+            else None
+        ),
     }
 
     backend_ranked = search_restaurants(

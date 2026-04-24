@@ -32,4 +32,5 @@ def render_search_bar(
         label_visibility="collapsed",
         on_change=on_change,
     )
+    st.caption("Press Enter to Search or click the Search button.")
     return query.strip()

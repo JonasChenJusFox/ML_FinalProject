@@ -20,9 +20,8 @@ from frontend.adapters import clean_text, normalize_results
 from frontend.auth import open_login_modal
 from frontend.components.empty_state import render_empty_state
 from frontend.components.restaurant_card import render_restaurant_card
-from integration.api import get_restaurants_by_ids
-from integration.review_repo import get_user_reviews
-from integration.wrapped_repo import build_wrapped_stats
+from integration.api import get_all_restaurants
+from integration.db import build_wrapped_stats, get_user_reviews, normalize_review_sentiment
 
 
 def _init_profile_state() -> None:
@@ -60,7 +59,7 @@ def _render_user_review_history(reviews: list[dict], restaurant_index: dict[str,
         name = clean_text(review.get("restaurant_name") or restaurant.get("name") or "Restaurant")
         borough = clean_text(review.get("restaurant_borough") or restaurant.get("borough") or "")
         address = clean_text(review.get("restaurant_address") or restaurant.get("address") or "")
-        rating = float(review.get("rating", 0.0) or 0.0)
+        sentiment = normalize_review_sentiment(review.get("sentiment") or review.get("rating"))
         comment = clean_text(review.get("comment", ""))
         updated_at = _format_review_timestamp(review.get("updated_at"))
 
@@ -75,13 +74,41 @@ def _render_user_review_history(reviews: list[dict], restaurant_index: dict[str,
                   <div class="nb-wrap-restaurant-name">{html.escape(name)}</div>
                   <div class="nb-wrap-restaurant-meta">{html.escape(meta)}</div>
                   <div class="nb-card-address">{html.escape(address)}</div>
-                  <div class="nb-review-rating">{html.escape(f"⭐ {rating:.1f}")}</div>
+                  <div class="nb-review-rating">{html.escape(sentiment.title())}</div>
                   <div class="nb-comment-text">{safe_comment}</div>
                 </div>
                 """
             ).strip(),
             unsafe_allow_html=True,
         )
+
+
+def _build_restaurant_index(
+    restaurants: list[dict],
+    needed_ids: list[str],
+) -> dict[str, dict]:
+    normalized = normalize_results(restaurants or [])
+    index = {
+        item.get("business_id"): item
+        for item in normalized
+        if item.get("business_id")
+    }
+
+    missing_ids = [
+        business_id
+        for business_id in needed_ids
+        if business_id and business_id not in index
+    ]
+    if not missing_ids:
+        return index
+
+    all_restaurants = normalize_results(get_all_restaurants())
+    for item in all_restaurants:
+        business_id = item.get("business_id")
+        if business_id and business_id not in index:
+            index[business_id] = item
+
+    return index
 
 
 def render_profile(restaurants: list[dict]) -> None:
@@ -115,24 +142,22 @@ def render_profile(restaurants: list[dict]) -> None:
         for review in reviews
         if clean_text(review.get("business_id", ""))
     ]
-    extra_restaurants = get_restaurants_by_ids(saved_ids + review_business_ids)
-    combined_restaurants = list(restaurants or []) + extra_restaurants
-    normalized = normalize_results(combined_restaurants)
-    restaurant_index = {
-        item.get("business_id"): item
-        for item in normalized
-        if item.get("business_id")
-    }
+    normalized = normalize_results(restaurants or [])
+    restaurant_index = _build_restaurant_index(
+        normalized,
+        saved_ids + review_business_ids,
+    )
 
     saved_restaurants = [restaurant_index[item_id] for item_id in saved_ids if item_id in restaurant_index]
-    wrapped = build_wrapped_stats(username, normalized)
+    wrapped = build_wrapped_stats(username, list(restaurant_index.values()))
+    liked_count = len(st.session_state.get("liked_ids", []) or [])
 
     st.markdown(
         "<div class='nb-section-title'>Wrapped summary</div>",
         unsafe_allow_html=True,
     )
 
-    summary_cols = st.columns(4, gap="small")
+    summary_cols = st.columns(5, gap="small")
 
     summary_cols[0].markdown(
         f"""
@@ -170,6 +195,16 @@ def render_profile(restaurants: list[dict]) -> None:
     summary_cols[3].markdown(
         f"""
         <div class="nb-wrap-card">
+          <div class="nb-panel-title">Liked places</div>
+          <div class="nb-wrap-value">{liked_count}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    summary_cols[4].markdown(
+        f"""
+        <div class="nb-wrap-card">
           <div class="nb-panel-title">Reviewed places</div>
           <div class="nb-wrap-value">{reviewed_count}</div>
         </div>
@@ -189,7 +224,6 @@ def render_profile(restaurants: list[dict]) -> None:
         "<div class='nb-section-title'>Saved restaurants</div>",
         unsafe_allow_html=True,
     )
-    st.caption("Use Focus map to jump to Discover and move that restaurant to the top.")
 
     if not saved_restaurants:
         render_empty_state(
@@ -198,5 +232,7 @@ def render_profile(restaurants: list[dict]) -> None:
         )
         return
 
+    cols = st.columns(2, gap="large")
     for idx, item in enumerate(saved_restaurants):
-        render_restaurant_card(item, key_prefix=f"profile_saved_{idx}")
+        with cols[idx % 2]:
+            render_restaurant_card(item, key_prefix=f"profile_saved_{idx}")

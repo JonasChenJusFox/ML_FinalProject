@@ -15,11 +15,11 @@ from __future__ import annotations
 import streamlit as st
 
 from frontend.auth import close_questionnaire_modal
+from frontend.price_utils import PRICE_LABELS
 from frontend.user_profile_state import (
     get_questionnaire_answers,
     save_questionnaire_answers,
 )
-from integration.price_utils import PRICE_LABELS
 
 CUISINES = [
     "Japanese",

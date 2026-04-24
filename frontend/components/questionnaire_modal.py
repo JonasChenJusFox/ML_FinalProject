@@ -42,3 +42,4 @@ def render_questionnaire_modal() -> None:
             st.rerun()
 
     _dialog()
+    st.session_state.show_questionnaire_modal = False

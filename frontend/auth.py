@@ -14,11 +14,12 @@ from __future__ import annotations
 
 import streamlit as st
 
-from integration.interaction_repo import get_saved_restaurant_ids
-from integration.user_repo import (
+from integration.db import (
     create_user,
     find_user_by_credentials,
     find_user_by_username,
+    get_liked_restaurant_ids,
+    get_saved_restaurant_ids,
     has_secret_question,
     is_valid_secret_question,
     reset_user_password,
@@ -40,9 +41,6 @@ def _clear_account_security_widget_state() -> None:
         "nav_popover_login",
         "nav_popover_signup",
         "nav_popover_logout",
-        "security_pause_personalization",
-        "security_resume_personalization",
-        "security_clear_personalization",
     )
 
 
@@ -71,6 +69,9 @@ def init_auth_state() -> None:
     if "saved_ids" not in st.session_state:
         st.session_state.saved_ids = []
 
+    if "liked_ids" not in st.session_state:
+        st.session_state.liked_ids = []
+
 
 def _complete_login(user: dict) -> None:
     st.session_state.is_logged_in = True
@@ -80,6 +81,7 @@ def _complete_login(user: dict) -> None:
         "email": user.get("email", ""),
     }
     st.session_state.saved_ids = get_saved_restaurant_ids(user["username"])
+    st.session_state.liked_ids = get_liked_restaurant_ids(user["username"])
     st.session_state.show_login_modal = False
     st.session_state.show_signup_modal = False
     st.session_state.show_forgot_password_modal = False
@@ -224,6 +226,7 @@ def signup(
         return False, "We could not create your account. Please try again."
 
     st.session_state.saved_ids = []
+    st.session_state.liked_ids = []
     _complete_login(user)
     return True, "Account created successfully."
 
@@ -318,6 +321,7 @@ def logout() -> None:
     st.session_state.is_logged_in = False
     st.session_state.current_user = None
     st.session_state.saved_ids = []
+    st.session_state.liked_ids = []
     st.session_state.show_login_modal = False
     st.session_state.show_signup_modal = False
     st.session_state.show_forgot_password_modal = False

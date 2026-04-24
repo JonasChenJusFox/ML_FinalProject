@@ -6,7 +6,7 @@ Responsibilities:
 - Renders the standard top navigation bar for the NearBite app
 - Displays the NearBite logo and main navigation controls
 - Supports switching between Home, Discover, and Profile
-- Provides login and logout actions inside a utility hamburger menu
+- Provides account access from a dedicated top-right button
 - Uses a normal top layout without sticky or fixed behavior
 """
 
@@ -30,7 +30,7 @@ def render_nav() -> str:
 
     st.markdown("<div class='nb-topbar-standard'>", unsafe_allow_html=True)
 
-    left, middle, right = st.columns([2.0, 5.2, 0.9], gap="small", vertical_alignment="center")
+    left, middle, right = st.columns([2.0, 5.0, 1.15], gap="small", vertical_alignment="center")
 
     with left:
         st.markdown(
@@ -62,7 +62,7 @@ def render_nav() -> str:
 
     with right:
         st.button(
-            "☰",
+            "Account",
             key="nav_menu_button",
             use_container_width=True,
             on_click=open_account_security_modal,

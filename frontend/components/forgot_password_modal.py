@@ -18,7 +18,7 @@ from frontend.auth import (
     forgot_password,
     open_login_modal,
 )
-from integration.user_repo import get_secret_question_prompt
+from integration.db import get_secret_question_prompt
 
 
 def render_forgot_password_modal() -> None:

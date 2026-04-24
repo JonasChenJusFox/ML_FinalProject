@@ -14,7 +14,7 @@ from __future__ import annotations
 import streamlit as st
 
 from frontend.auth import close_signup_modal, open_login_modal, signup
-from integration.user_repo import get_secret_questions
+from integration.db import get_secret_questions
 
 
 def render_signup_modal() -> None:

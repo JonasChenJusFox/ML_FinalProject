@@ -17,9 +17,12 @@ from collections import Counter
 
 import streamlit as st
 
-from integration.api import NYU_LAT, NYU_LON, haversine_km as _haversine_km
-from integration.borough_utils import get_location_filter_options, infer_borough
-from integration.location_context import find_nearest_search_area
+from frontend.location_utils import (
+    find_nearest_search_area,
+    get_location_filter_options,
+    haversine_km as _haversine_km,
+    infer_borough,
+)
 
 WALKING_KM_PER_MINUTE = 5.0 / 60.0
 
@@ -58,9 +61,15 @@ def get_current_origin() -> dict:
         if st.session_state.get("origin_label_cache_key") != coords_key:
             nearest_area = find_nearest_search_area(latitude, longitude)
             nearest_street = _find_nearest_street_label(latitude, longitude)
-            label = nearest_street or (nearest_area["name"] if nearest_area else f"{latitude:.4f}, {longitude:.4f}")
-            travel_label = nearest_street or (nearest_area["name"] if nearest_area else "Current location")
-            area_label = nearest_area["name"] if nearest_area else ""
+            selected_zipcode = clean_text(st.session_state.get("selected_zipcode", ""))
+            if selected_zipcode:
+                label = f"ZIP {selected_zipcode}"
+                travel_label = nearest_area["name"] if nearest_area else f"ZIP {selected_zipcode}"
+                area_label = nearest_area["name"] if nearest_area else ""
+            else:
+                label = nearest_street or (nearest_area["name"] if nearest_area else f"{latitude:.4f}, {longitude:.4f}")
+                travel_label = nearest_street or (nearest_area["name"] if nearest_area else "Current location")
+                area_label = nearest_area["name"] if nearest_area else ""
             st.session_state.origin_label_cache_key = coords_key
             st.session_state.origin_label = label
             st.session_state.origin_travel_label = travel_label
@@ -75,11 +84,11 @@ def get_current_origin() -> dict:
         }
 
     return {
-        "label": "NYU",
-        "travel_label": "NYU",
-        "area_label": "NYU",
-        "lat": NYU_LAT,
-        "lon": NYU_LON,
+        "label": "Location not set",
+        "travel_label": "",
+        "area_label": "",
+        "lat": None,
+        "lon": None,
     }
 
 
@@ -91,17 +100,22 @@ def get_current_origin_kwargs() -> dict:
     }
 
 
-def set_user_origin(lat: float, lon: float) -> None:
+def set_user_origin(lat: float, lon: float, *, zipcode: str | None = None) -> None:
     st.session_state.use_my_location = True
     st.session_state.user_lat = float(lat)
     st.session_state.user_lon = float(lon)
+    st.session_state.selected_zipcode = clean_text(zipcode) if zipcode else ""
     st.session_state.origin_label_cache_key = None
 
 
-def reset_origin_to_nyu() -> None:
+def clear_user_origin() -> None:
     st.session_state.use_my_location = False
     st.session_state.user_lat = None
     st.session_state.user_lon = None
+    st.session_state.selected_zipcode = ""
+    st.session_state.origin_label = ""
+    st.session_state.origin_travel_label = ""
+    st.session_state.origin_area_label = ""
     st.session_state.origin_label_cache_key = None
 
 
@@ -126,6 +140,8 @@ def _minutes_from_current_origin(lat: float, lon: float) -> int:
         return 0
 
     origin = get_current_origin()
+    if origin["lat"] is None or origin["lon"] is None:
+        return 0
     km = _haversine_km(origin["lat"], origin["lon"], lat, lon)
 
     # Use a conservative walking-speed estimate so the card UI does not
@@ -237,6 +253,26 @@ def _extract_address(raw: dict) -> str:
     return "Address not listed"
 
 
+def _extract_location_search_text(raw: dict) -> str:
+    display_address = raw.get("display_address", [])
+    display_text = " ".join(
+        clean_text(item) for item in display_address
+        if clean_text(item)
+    ) if isinstance(display_address, list) else clean_text(display_address)
+
+    parts = [
+        raw.get("address", ""),
+        raw.get("address1", ""),
+        raw.get("address2", ""),
+        raw.get("address3", ""),
+        raw.get("city", ""),
+        raw.get("neighborhood", ""),
+        raw.get("borough", ""),
+        display_text,
+    ]
+    return clean_text(" ".join(clean_text(part) for part in parts if clean_text(part)))
+
+
 def _extract_price_display(raw: dict) -> str:
     price = clean_text(raw.get("price", ""))
     if price:
@@ -280,6 +316,7 @@ def normalize_restaurant(raw: dict) -> dict:
         "price_original": clean_text(raw.get("price_original", "")),
         "price_level": raw.get("price_level", 0),
         "address": _extract_address(raw),
+        "location_search_text": _extract_location_search_text(raw),
         "latitude": lat,
         "longitude": lon,
         "image_url": _extract_image_url(raw),

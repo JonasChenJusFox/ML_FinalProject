@@ -11,7 +11,7 @@ Responsibilities:
 
 :root {
   --nb-bg: #f7f4ef;
-  --nb-surface: #fffdf9;
+  --nb-surface: #fffdfa;
   --nb-surface-soft: #fcf8f3;
   --nb-border: #ddd4c9;
   --nb-text: #1f1c19;
@@ -21,6 +21,12 @@ Responsibilities:
   --nb-accent-soft: #fff0eb;
   --nb-input-bg: #fff6f1;
   --nb-input-border: #e8d1c2;
+  --nb-button-bg: #fff2e7;
+  --nb-button-border: #e3c1ab;
+  --nb-button-hover: #fde8d7;
+  --nb-button-text: #5a3a10;
+  --nb-button-primary: #fff2e7;
+  --nb-button-primary-hover: #fde8d7;
   --nb-shadow: 0 10px 24px rgba(31, 28, 25, 0.06);
   --nb-radius: 0px;
   --nb-button-h: 46px;
@@ -113,18 +119,18 @@ button[data-testid="stPopoverButton"] {
   min-height: var(--nb-button-h) !important;
   height: var(--nb-button-h) !important;
   border-radius: var(--nb-radius) !important;
-  border: 1px solid var(--nb-border) !important;
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-button-border) !important;
+  background: var(--nb-button-bg) !important;
+  color: var(--nb-button-text) !important;
   box-shadow: none !important;
-  -webkit-text-fill-color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-button-text) !important;
 }
 
 button[data-testid="stPopoverButton"]:hover {
-  background: #fff7f2 !important;
-  border-color: var(--nb-accent) !important;
-  color: var(--nb-accent-strong) !important;
-  -webkit-text-fill-color: var(--nb-accent-strong) !important;
+  background: var(--nb-button-hover) !important;
+  border-color: var(--nb-button-border) !important;
+  color: var(--nb-button-text) !important;
+  -webkit-text-fill-color: var(--nb-button-text) !important;
 }
 
 button[data-testid="stPopoverButton"] *,
@@ -139,18 +145,18 @@ div[data-testid="stPopover"] button {
   min-height: var(--nb-button-h) !important;
   height: var(--nb-button-h) !important;
   border-radius: var(--nb-radius) !important;
-  border: 1px solid var(--nb-border) !important;
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-button-border) !important;
+  background: var(--nb-button-bg) !important;
+  color: var(--nb-button-text) !important;
   box-shadow: none !important;
-  -webkit-text-fill-color: var(--nb-text) !important;
+  -webkit-text-fill-color: var(--nb-button-text) !important;
 }
 
 div[data-testid="stPopover"] button:hover {
-  background: #fff7f2 !important;
-  border-color: var(--nb-accent) !important;
-  color: var(--nb-accent-strong) !important;
-  -webkit-text-fill-color: var(--nb-accent-strong) !important;
+  background: var(--nb-button-hover) !important;
+  border-color: var(--nb-button-border) !important;
+  color: var(--nb-button-text) !important;
+  -webkit-text-fill-color: var(--nb-button-text) !important;
 }
 
 div[data-testid="stPopover"] button *,
@@ -189,16 +195,17 @@ div[data-testid="stPopoverBody"] label {
 }
 
 div[data-testid="stPopoverBody"] button {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
-  -webkit-text-fill-color: var(--nb-text) !important;
+  background: var(--nb-button-bg) !important;
+  color: var(--nb-button-text) !important;
+  border: 1px solid var(--nb-button-border) !important;
+  -webkit-text-fill-color: var(--nb-button-text) !important;
 }
 
 div[data-testid="stPopoverBody"] button:hover {
-  border-color: var(--nb-accent) !important;
-  color: var(--nb-accent-strong) !important;
-  -webkit-text-fill-color: var(--nb-accent-strong) !important;
+  background: var(--nb-button-hover) !important;
+  border-color: var(--nb-button-border) !important;
+  color: var(--nb-button-text) !important;
+  -webkit-text-fill-color: var(--nb-button-text) !important;
 }
 
 div[data-testid="stPopoverContent"] {
@@ -228,16 +235,17 @@ div[data-testid="stPopoverContent"] label {
 }
 
 div[data-testid="stPopoverContent"] button {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
-  -webkit-text-fill-color: var(--nb-text) !important;
+  background: var(--nb-button-bg) !important;
+  color: var(--nb-button-text) !important;
+  border: 1px solid var(--nb-button-border) !important;
+  -webkit-text-fill-color: var(--nb-button-text) !important;
 }
 
 div[data-testid="stPopoverContent"] button:hover {
-  border-color: var(--nb-accent) !important;
-  color: var(--nb-accent-strong) !important;
-  -webkit-text-fill-color: var(--nb-accent-strong) !important;
+  background: var(--nb-button-hover) !important;
+  border-color: var(--nb-button-border) !important;
+  color: var(--nb-button-text) !important;
+  -webkit-text-fill-color: var(--nb-button-text) !important;
 }
 
 /* =========================================================
@@ -402,6 +410,47 @@ div[data-testid="stPopoverContent"] button:hover {
   padding: 1rem;
 }
 
+.nb-filter-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0.7rem 0 1rem 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--nb-border);
+  background: var(--nb-surface);
+  box-shadow: var(--nb-shadow);
+}
+
+.nb-filter-feedback-label {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--nb-muted);
+}
+
+.nb-filter-feedback-value {
+  color: var(--nb-text);
+  font-weight: 600;
+}
+
+.nb-filter-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nb-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid #e5cabd;
+  background: #f9e2d6;
+  color: #a65c3d;
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
 .nb-card-wrap {
   margin-bottom: 0.9rem;
 }
@@ -490,22 +539,26 @@ div[data-testid="stPopoverContent"] button:hover {
 }
 
 .nb-rating-pill {
-  border: 1px solid #e5cabd;
-  background: var(--nb-accent-soft);
+  border: 0;
+  background: transparent;
   color: var(--nb-accent-strong);
   font-weight: 700;
-  padding: 0.42rem 0.66rem;
+  padding: 0;
   white-space: nowrap;
-  min-width: 72px;
-  text-align: center;
+  min-width: auto;
+  text-align: right;
 }
 
 .nb-wrap-card {
-  min-height: 120px;
+  min-height: 126px;
   padding: 1rem;
   border: 1px solid var(--nb-border);
-  background: #fffdfa;
+  background: var(--nb-surface-soft);
   box-shadow: var(--nb-shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  height: 100%;
 }
 
 .nb-wrap-value {
@@ -514,6 +567,7 @@ div[data-testid="stPopoverContent"] button:hover {
   font-weight: 600;
   color: var(--nb-text);
   line-height: 1.4;
+  min-height: 3rem;
 }
 
 .nb-wrap-restaurant {
@@ -778,9 +832,9 @@ div[data-testid="stLinkButton"] a {
   min-height: var(--nb-button-h) !important;
   height: var(--nb-button-h) !important;
   border-radius: var(--nb-radius) !important;
-  border: 1px solid var(--nb-border) !important;
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-button-border) !important;
+  background: var(--nb-button-bg) !important;
+  color: var(--nb-button-text) !important;
   box-shadow: none !important;
   padding: 0 0.8rem !important;
   line-height: 1.2 !important;
@@ -792,18 +846,42 @@ div[data-testid="stLinkButton"] a {
 div[data-testid="stButton"] > button:hover,
 div[data-testid="stFormSubmitButton"] > button:hover,
 div[data-testid="stLinkButton"] a:hover {
-  background: #fff7f2 !important;
-  border-color: var(--nb-accent) !important;
-  color: var(--nb-accent-strong) !important;
+  background: var(--nb-button-hover) !important;
+  border-color: var(--nb-button-border) !important;
+  color: var(--nb-button-text) !important;
 }
 
 div[data-testid="stButton"] > button[kind="primary"],
 div[data-testid="stButton"] button[data-testid="baseButton-primary"],
 div[data-testid="stFormSubmitButton"] > button[kind="primary"],
 div[data-testid="stFormSubmitButton"] button[data-testid="baseButton-primary"] {
+  background: var(--nb-button-primary) !important;
+  border-color: var(--nb-accent) !important;
+  color: var(--nb-button-text) !important;
+}
+
+div[data-testid="stButton"] > button[kind="primary"]:hover,
+div[data-testid="stButton"] button[data-testid="baseButton-primary"]:hover,
+div[data-testid="stFormSubmitButton"] > button[kind="primary"]:hover,
+div[data-testid="stFormSubmitButton"] button[data-testid="baseButton-primary"]:hover {
+  background: var(--nb-button-primary-hover) !important;
+  color: var(--nb-button-text) !important;
+}
+
+.nb-topbar-standard div[data-testid="stButton"] > button[kind="primary"],
+.nb-topbar-standard div[data-testid="stButton"] button[data-testid="baseButton-primary"] {
   background: var(--nb-accent) !important;
   border-color: var(--nb-accent) !important;
   color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+.nb-topbar-standard div[data-testid="stButton"] > button[kind="primary"]:hover,
+.nb-topbar-standard div[data-testid="stButton"] button[data-testid="baseButton-primary"]:hover {
+  background: var(--nb-accent-strong) !important;
+  border-color: var(--nb-accent-strong) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
 }
 
 div[data-testid="stButton"] > button:disabled,
@@ -954,15 +1032,16 @@ div[role="dialog"] svg {
 }
 
 div[role="dialog"] button {
-  background: #fffdfa !important;
-  color: var(--nb-text) !important;
-  border: 1px solid var(--nb-border) !important;
-  -webkit-text-fill-color: var(--nb-text) !important;
+  background: var(--nb-button-bg) !important;
+  color: var(--nb-button-text) !important;
+  border: 1px solid var(--nb-button-border) !important;
+  -webkit-text-fill-color: var(--nb-button-text) !important;
 }
 
 div[role="dialog"] button:hover {
-  border-color: var(--nb-accent) !important;
-  color: var(--nb-accent-strong) !important;
+  background: var(--nb-button-hover) !important;
+  border-color: var(--nb-button-border) !important;
+  color: var(--nb-button-text) !important;
 }
 
 div[role="dialog"] button[aria-label="Close"] {
@@ -1162,6 +1241,7 @@ div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-
   flex-direction: column;
   justify-content: center;
   min-height: 44px;
+  margin-bottom: 0.4rem;
 }
 
 .nb-location-inline-label {
@@ -1185,6 +1265,11 @@ div[data-testid="stVerticalBlock"]:has(.nb-recommendation-form-anchor) div[data-
   margin-top: 0.18rem;
   font-size: 0.9rem;
   color: var(--nb-muted);
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-location-inline-anchor) div[data-testid="stSelectbox"],
+div[data-testid="stVerticalBlock"]:has(.nb-location-inline-anchor) div[data-testid="stTextInput"] {
+  margin-top: 0.35rem;
 }
 
 div[data-testid="stVerticalBlock"]:has(.nb-location-inline-anchor) [data-testid="stCustomComponentV1"] {
@@ -1218,6 +1303,15 @@ div[data-testid="stVerticalBlock"]:has(.nb-location-inline-anchor) [data-testid=
 iframe[title="st_folium"] {
   border: 1px solid var(--nb-border);
   background: #fffdfa !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  display: block !important;
+}
+
+div[data-testid="stCustomComponentV1"]:has(iframe[title="st_folium"]) {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
 }
 
 /* =========================================================

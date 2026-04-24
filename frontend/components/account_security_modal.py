@@ -1,7 +1,11 @@
 """
 frontend/components/account_security_modal.py
+Owner: Jonas Chen
 
-Global dialog wrapper for the account and security menu.
+Responsibilities:
+- Opens the global account dialog from the top-right menu
+- Prevents account modal conflicts with login, signup, forgot-password, and comments dialogs
+- Resets the one-shot account modal flag after rendering
 """
 
 from __future__ import annotations
@@ -27,7 +31,7 @@ def render_account_security_modal() -> None:
         close_account_security_modal()
         return
 
-    @st.dialog("Account & Security")
+    @st.dialog("Account")
     def _dialog() -> None:
         render_account_security_menu()
 

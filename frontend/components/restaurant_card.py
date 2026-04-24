@@ -21,12 +21,24 @@ import streamlit as st
 from frontend.adapters import clean_text, get_current_origin, shorten_text
 from frontend.auth import open_login_modal
 from frontend.components.comments_modal import open_comments_modal
-from integration.interaction_repo import (
+from integration.db import (
+    get_liked_restaurant_ids,
     get_saved_restaurant_ids,
+    like_restaurant_for_user,
+    log_user_interaction,
     save_restaurant_for_user,
+    unlike_restaurant_for_user,
     unsave_restaurant_for_user,
 )
-from integration.wrapped_repo import log_user_interaction
+
+MISSING_TEXT_VALUES = {
+    "",
+    "unknown",
+    "details not listed",
+    "address not listed",
+    "no description available.",
+    "restaurant",
+}
 
 
 def _get_price_for_card(restaurant: dict) -> str:
@@ -61,24 +73,24 @@ def _build_meta_line(restaurant: dict) -> str:
     Build the short metadata line shown under the restaurant title.
     """
     price_text = _get_price_for_card(restaurant)
-    borough = restaurant.get("borough", "Unknown")
+    borough = clean_text(restaurant.get("borough", ""))
     travel_minutes = restaurant.get("travel_minutes", "—")
 
     origin = get_current_origin()
-    origin_label = origin.get("travel_label", origin.get("label", "NYU"))
+    origin_label = origin.get("travel_label") or origin.get("label") or "Current location"
 
     meta_parts: list[str] = []
 
     if price_text:
         meta_parts.append(price_text)
 
-    if borough and borough != "Unknown":
+    if borough and borough.lower() not in MISSING_TEXT_VALUES:
         meta_parts.append(str(borough))
 
     if travel_minutes not in [None, "", 0, "—"]:
         meta_parts.append(f"{travel_minutes} min from {origin_label}")
 
-    return " • ".join(meta_parts) if meta_parts else "Details not listed"
+    return " • ".join(meta_parts)
 
 
 def _log_if_logged_in(business_id: str, action: str) -> None:
@@ -96,21 +108,28 @@ def _log_if_logged_in(business_id: str, action: str) -> None:
     log_user_interaction(username, business_id, action)
 
 
-def _handle_save_toggle(business_id: str, already_saved: bool, saved_ids: list[str]) -> None:
-    """
-    Save or unsave a restaurant.
-    If the user is not logged in, open the login modal instead.
-    """
+def _require_login_for_interaction() -> str | None:
     if not st.session_state.get("is_logged_in", False):
         open_login_modal()
         st.rerun()
 
     current_user = st.session_state.get("current_user")
     username = current_user.get("username") if current_user else None
-
     if not username:
         open_login_modal()
         st.rerun()
+
+    return username
+
+
+def _handle_save_toggle(business_id: str, already_saved: bool, saved_ids: list[str]) -> None:
+    """
+    Save or unsave a restaurant.
+    If the user is not logged in, open the login modal instead.
+    """
+    username = _require_login_for_interaction()
+    if not username:
+        return
 
     if already_saved:
         unsave_restaurant_for_user(username, business_id)
@@ -122,6 +141,24 @@ def _handle_save_toggle(business_id: str, already_saved: bool, saved_ids: list[s
         st.toast("Saved!")
 
     st.session_state.saved_ids = get_saved_restaurant_ids(username)
+    st.rerun()
+
+
+def _handle_like_toggle(business_id: str, already_liked: bool, liked_ids: list[str]) -> None:
+    username = _require_login_for_interaction()
+    if not username:
+        return
+
+    if already_liked:
+        unlike_restaurant_for_user(username, business_id)
+        _log_if_logged_in(business_id, "unliked")
+        st.toast("Removed from likes.")
+    else:
+        like_restaurant_for_user(username, business_id)
+        _log_if_logged_in(business_id, "liked")
+        st.toast("Liked!")
+
+    st.session_state.liked_ids = get_liked_restaurant_ids(username)
     st.rerun()
 
 
@@ -150,9 +187,14 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
     """
     business_id = restaurant.get("business_id", "")
     name = clean_text(restaurant.get("name", "Unknown"))
-    categories = " · ".join(restaurant.get("categories", [])[:3]) or "Restaurant"
+    category_values = [
+        clean_text(category)
+        for category in restaurant.get("categories", [])[:3]
+        if clean_text(category).lower() not in MISSING_TEXT_VALUES
+    ]
+    categories = " · ".join(category_values[:2])
     rating = float(restaurant.get("rating", 0.0) or 0.0)
-    address = clean_text(restaurant.get("address", "Address not listed")) or "Address not listed"
+    address = clean_text(restaurant.get("address", ""))
     body_text = shorten_text(
         restaurant.get("description") or restaurant.get("review_snippet", ""),
         220,
@@ -188,15 +230,19 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
         '<div class="nb-card-head">',
         "<div>",
         f'<div class="nb-card-name">{html.escape(name)}</div>',
-        f'<div class="nb-card-cuisine">{html.escape(categories)}</div>',
+        (f'<div class="nb-card-cuisine">{html.escape(categories)}</div>' if categories else ""),
         "</div>",
         f'<div class="nb-rating-pill">⭐ {rating:.1f}</div>',
         "</div>",
-        f'<div class="nb-card-meta">{html.escape(meta)}</div>',
-        f'<div class="nb-card-address">{html.escape(address)}</div>',
-        '<div class="nb-card-review">',
-        html.escape(body_text) if body_text else "No description available.",
-        "</div>",
+        (f'<div class="nb-card-meta">{html.escape(meta)}</div>' if meta else ""),
+        (f'<div class="nb-card-address">{html.escape(address)}</div>' if address else ""),
+        (
+            "<div class='nb-card-review'>"
+            f"{html.escape(body_text)}"
+            "</div>"
+            if body_text and body_text.lower() not in MISSING_TEXT_VALUES
+            else ""
+        ),
     ]
     if footer_link_html:
         card_html_parts.append(footer_link_html)
@@ -211,18 +257,27 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
     st.markdown("\n".join(card_html_parts), unsafe_allow_html=True)
 
     saved_ids = st.session_state.get("saved_ids", []) or []
+    liked_ids = st.session_state.get("liked_ids", []) or []
     already_saved = business_id in saved_ids
+    already_liked = business_id in liked_ids
 
-    row1 = st.columns(2, gap="small")
+    row1 = st.columns(3, gap="small")
 
     if row1[0].button(
+        "Unlike" if already_liked else "Like",
+        key=f"{key_prefix}_like_{business_id}",
+        use_container_width=True,
+    ):
+        _handle_like_toggle(business_id, already_liked, liked_ids)
+
+    if row1[1].button(
         "Unsave" if already_saved else "Save",
         key=f"{key_prefix}_save_{business_id}",
         use_container_width=True,
     ):
         _handle_save_toggle(business_id, already_saved, saved_ids)
 
-    if row1[1].button(
+    if row1[2].button(
         "Focus map",
         key=f"{key_prefix}_focus_{business_id}",
         use_container_width=True,
@@ -230,7 +285,7 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
         _handle_focus_map(business_id)
 
     st.button(
-        "Comments",
+        "Review",
         key=f"{key_prefix}_comments_{business_id}",
         use_container_width=True,
         on_click=_handle_open_comments,

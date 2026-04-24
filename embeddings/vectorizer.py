@@ -10,10 +10,9 @@ All embeddings are normalized vectors.
 
 NOTE: All modules (vectorizer, build_index, cluster_retrieval, user modeling)
 must use the same model to ensure embedding spaces are compatible.
-Default model: config.settings.EMBEDDING_MODEL.
+Default model: sentence-transformers/multi-qa-mpnet-base-cos-v1.
 """
 
-from config.settings import EMBEDDING_MODEL
 from sentence_transformers import SentenceTransformer
 
 
@@ -23,7 +22,7 @@ from sentence_transformers import SentenceTransformer
 _model_cache = None
 
 
-def get_embedding_model(model_name: str = EMBEDDING_MODEL) -> SentenceTransformer:
+def get_embedding_model(model_name: str = "sentence-transformers/multi-qa-mpnet-base-cos-v1") -> SentenceTransformer:
     """Load and cache the SentenceTransformer embedding model.
 
     Args:

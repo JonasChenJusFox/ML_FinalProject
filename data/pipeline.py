@@ -22,15 +22,6 @@ USER_INTERACTIONS_PATH = REPO_ROOT / "data" / "user_interactions.json"
 SYNTHETIC_USER_PROFILES_PATH = REPO_ROOT / "data" / "synthetic_user_profiles.json"
 
 
-def _optional_float(value: object) -> float | None:
-    try:
-        if value is None or value == "":
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def load_restaurants(source: str = "yelp_cache") -> list[dict]:
     """
     Load restaurant records from local cache or Yelp API.
@@ -165,19 +156,4 @@ def clean_restaurant(raw: dict) -> Optional[dict]:
     if not business_id or not name:
         return None
 
-    cleaned = dict(raw)
-    coordinates = raw.get("coordinates", {})
-
-    latitude = _optional_float(raw.get("latitude"))
-    longitude = _optional_float(raw.get("longitude"))
-
-    if isinstance(coordinates, dict):
-        if latitude is None:
-            latitude = _optional_float(coordinates.get("latitude"))
-        if longitude is None:
-            longitude = _optional_float(coordinates.get("longitude"))
-
-    cleaned["latitude"] = latitude
-    cleaned["longitude"] = longitude
-
-    return cleaned
+    return raw

@@ -1,7 +1,11 @@
 """
 frontend/components/account_security_menu.py
+Owner: Jonas Chen
 
-Renders the account and security controls inside the top-right menu.
+Responsibilities:
+- Renders the account-only controls inside the top-right menu
+- Shows account summary, secret question setup, password reset, and delete account
+- Handles anonymous-state login and sign-up entry points from the account modal
 """
 
 from __future__ import annotations
@@ -18,15 +22,13 @@ from frontend.auth import (
     reset_password_with_secret_question,
     save_secret_question_for_user,
 )
-from integration.account_service import clear_personalization_data, delete_account
-from integration.user_repo import (
+from integration.db import (
+    delete_account,
     find_user_by_username,
     get_secret_questions,
     has_secret_question,
-    set_personalization_state,
     verify_secret_question_answer,
 )
-from integration.wrapped_repo import build_wrapped_stats
 
 
 def _format_datetime(value: object) -> str:
@@ -182,75 +184,13 @@ def _render_account_tab() -> None:
     _render_delete_account(username, user)
 
 
-def _render_security_tab() -> None:
-    current_user = st.session_state.get("current_user", {}) or {}
-    username = str(current_user.get("username", "") or "").strip().lower()
-    if not username:
-        st.info("Log in to manage security settings.")
-        return
-
-    user = find_user_by_username(username) or {}
-    personalization_enabled = bool(user.get("personalization_enabled", True))
-    status_label = "On" if personalization_enabled else "Paused"
-
-    st.markdown("##### Personalization")
-    st.caption(f"Status: {status_label}")
-
-    if personalization_enabled:
-        if st.button("Pause personalization", key="security_pause_personalization", use_container_width=True):
-            preview_restaurants = st.session_state.get("preview_restaurants", []) or []
-            frozen_stats = build_wrapped_stats(username, preview_restaurants)
-            set_personalization_state(
-                username,
-                False,
-                frozen_personalization=frozen_stats,
-            )
-            st.toast("Personalization paused. We will keep your current preferences without learning from new activity.")
-            st.rerun()
-    else:
-        if st.button("Resume personalization", key="security_resume_personalization", use_container_width=True):
-            set_personalization_state(
-                username,
-                True,
-                frozen_personalization=None,
-            )
-            st.toast("Personalization resumed.")
-            st.rerun()
-
-    st.divider()
-    st.markdown("##### Delete personalization data")
-    st.caption(
-        "This clears questionnaire-based and behavior-based personalization data. "
-        "Your public reviews stay visible, but they will stop affecting recommendations."
-    )
-
-    confirm_clear = st.text_input(
-        "Type CLEAR to confirm",
-        key="security_clear_personalization_confirm",
-    )
-    if st.button("Delete personalization data", key="security_clear_personalization", use_container_width=True):
-        if confirm_clear.strip().upper() != "CLEAR":
-            st.error("Type CLEAR before deleting personalization data.")
-            return
-
-        clear_personalization_data(username)
-        close_account_security_modal()
-        st.session_state.saved_ids = []
-        st.toast("Personalization data deleted.")
-        st.rerun()
-
-
 def render_account_security_menu() -> None:
     if st.session_state.get("is_logged_in", False):
         current_user = st.session_state.get("current_user", {}) or {}
         display_name = current_user.get("display_name", "User")
         st.caption(f"Logged in as {display_name}")
 
-        account_tab, security_tab = st.tabs(["Account", "Security"])
-        with account_tab:
-            _render_account_tab()
-        with security_tab:
-            _render_security_tab()
+        _render_account_tab()
 
         if st.button("Log out", key="nav_popover_logout", use_container_width=True):
             close_account_security_modal()
@@ -259,7 +199,7 @@ def render_account_security_menu() -> None:
             st.rerun()
         return
 
-    st.write("Log in to manage your account and privacy settings.")
+    st.write("Log in to manage your account.")
     row = st.columns(2, gap="small")
     if row[0].button("Log in", key="nav_popover_login", use_container_width=True):
         close_account_security_modal()

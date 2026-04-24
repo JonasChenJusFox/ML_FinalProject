@@ -6,18 +6,21 @@ Responsibilities:
 - Handles MongoDB reads and writes for user accounts
 - Stores and retrieves onboarding questionnaire answers
 - Supports username/password authentication and password reset flows
+- Normalizes questionnaire answers and builds embedding-ready profile text
+- Hashes and verifies passwords and secret answers
 - Keeps database access separate from Streamlit UI logic
 """
 
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
 import hmac
+import secrets
+from typing import Any
 
 from config.settings import EMBEDDING_MODEL
-from integration.auth_security import hash_secret, verify_secret
 from integration.db import get_collection
-from integration.user_profile_model import build_profile_text, normalize_answers
 
 users_collection = get_collection("users")
 profiles_collection = get_collection("user_profiles")
@@ -31,6 +34,239 @@ SECRET_QUESTIONS = [
     "What was the name of your favorite teacher?",
     "What was the make of your first car?",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Security helpers
+# ---------------------------------------------------------------------------
+
+PBKDF2_ITERATIONS = 120_000
+SALT_BYTES = 16
+
+
+def hash_secret(
+    secret: str,
+    *,
+    salt_hex: str | None = None,
+    iterations: int = PBKDF2_ITERATIONS,
+) -> tuple[str, str]:
+    salt = bytes.fromhex(salt_hex) if salt_hex else secrets.token_bytes(SALT_BYTES)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        secret.encode("utf-8"),
+        salt,
+        iterations,
+    )
+    return digest.hex(), salt.hex()
+
+
+def verify_secret(
+    secret: str,
+    expected_hash: str,
+    salt_hex: str,
+    *,
+    iterations: int = PBKDF2_ITERATIONS,
+) -> bool:
+    actual_hash, _ = hash_secret(secret, salt_hex=salt_hex, iterations=iterations)
+    return hmac.compare_digest(actual_hash, expected_hash)
+
+
+# ---------------------------------------------------------------------------
+# Questionnaire normalization and profile text
+# ---------------------------------------------------------------------------
+
+_PRICE_ALIAS_TO_LABEL = {
+    "$": "cheap",
+    "$$": "moderate",
+    "$$$": "expensive",
+    "$$$$": "luxury",
+    "1": "cheap",
+    "2": "moderate",
+    "3": "expensive",
+    "4": "luxury",
+    "cheap": "cheap",
+    "budget": "cheap",
+    "affordable": "cheap",
+    "inexpensive": "cheap",
+    "moderate": "moderate",
+    "mid range": "moderate",
+    "mid-range": "moderate",
+    "reasonably priced": "moderate",
+    "expensive": "expensive",
+    "pricey": "expensive",
+    "upscale": "expensive",
+    "luxury": "luxury",
+    "fine dining": "luxury",
+    "premium": "luxury",
+    "high end": "luxury",
+    "high-end": "luxury",
+}
+
+_PRICE_LEVELS = {
+    "cheap": 1.0,
+    "moderate": 2.0,
+    "expensive": 3.0,
+    "luxury": 4.0,
+}
+
+TRAVEL_TO_MAX_KM = {
+    "Walking distance (< 10 min / ~0.5 mi)": 0.8,
+    "Short commute (10–20 min / ~1 mi)": 1.6,
+    "Across the neighborhood (20–35 min)": 5.0,
+    "Anywhere in the city": 20.0,
+}
+
+NOVELTY_TO_LEVEL = {
+    "stick to what i know": 0.1,
+    "mix of both": 0.5,
+    "try new things": 0.9,
+}
+
+
+def canonicalize_price_label(value: Any) -> str:
+    if value is None:
+        return ""
+
+    if isinstance(value, (int, float)):
+        rounded = int(round(float(value)))
+        return _PRICE_ALIAS_TO_LABEL.get(str(rounded), "")
+
+    text = str(value).strip().lower()
+    if not text:
+        return ""
+
+    return _PRICE_ALIAS_TO_LABEL.get(text, "")
+
+
+def price_level_value(value: Any) -> float:
+    canonical = canonicalize_price_label(value)
+    if canonical:
+        return _PRICE_LEVELS.get(canonical, 0.0)
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _clean_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        text = str(item).strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(text)
+    return cleaned
+
+
+def normalize_answers(raw_answers: dict) -> dict:
+    answers = raw_answers if isinstance(raw_answers, dict) else {}
+
+    top_cuisines = _clean_list(answers.get("top_cuisines", []))
+    cravings = _clean_list(answers.get("craving_preferences", []))
+    vibes = _clean_list(answers.get("vibes_dining_style", []))
+    dietary = _clean_list(answers.get("dietary_restrictions", []))
+    meals = _clean_list(answers.get("typical_meals", []))
+    decision = _clean_list(answers.get("decision_criteria", []))
+    dishes = _clean_list(answers.get("favorite_dishes", []))
+
+    loved = _clean_list(answers.get("loved_restaurants", []))
+    wishlist = _clean_list(answers.get("wishlist_restaurants", []))
+    frequent = _clean_list(answers.get("frequent_restaurants", []))
+    aspirational = _clean_list(answers.get("aspirational_restaurants", []))
+
+    novelty = str(answers.get("novelty_preference", "")).strip().lower()
+    price_label = canonicalize_price_label(answers.get("price_comfort_level", "moderate")) or "moderate"
+    adventurousness = answers.get("adventurousness", 3)
+
+    try:
+        adventurousness_value = int(adventurousness)
+    except (TypeError, ValueError):
+        adventurousness_value = 3
+    adventurousness_value = max(1, min(5, adventurousness_value))
+
+    travel = str(answers.get("travel_willingness", "")).strip()
+    if travel not in TRAVEL_TO_MAX_KM:
+        travel = "Short commute (10–20 min / ~1 mi)"
+
+    return {
+        "cuisine_pref": [item.lower() for item in top_cuisines],
+        "craving_tags": [item.lower() for item in cravings],
+        "price_level": {
+            "label": price_label,
+            "numeric": int(round(price_level_value(price_label) or 2.0)),
+        },
+        "vibe_tags": [item.lower() for item in vibes],
+        "dietary_tags": [item.lower() for item in dietary if item.lower() != "none"],
+        "adventure_level": round((adventurousness_value - 1) / 4, 3),
+        "max_travel_km": TRAVEL_TO_MAX_KM.get(travel, 1.6),
+        "company_tags": [str(answers.get("dining_company", "")).strip().lower()] if str(answers.get("dining_company", "")).strip() else [],
+        "meal_tags": [item.lower() for item in meals],
+        "decision_weights": {item.lower(): 1.0 for item in decision},
+        "novelty_level": NOVELTY_TO_LEVEL.get(novelty, 0.5),
+        "dish_tags": [item.lower() for item in dishes],
+        "restaurant_affinity_terms": [
+            item.lower()
+            for item in (loved + frequent + wishlist + aspirational)
+        ],
+    }
+
+
+def build_profile_text(raw_answers: dict) -> str:
+    answers = raw_answers if isinstance(raw_answers, dict) else {}
+    normalized = normalize_answers(answers)
+
+    parts: list[str] = []
+
+    for key in [
+        "top_cuisines",
+        "craving_preferences",
+        "vibes_dining_style",
+        "dietary_restrictions",
+        "typical_meals",
+        "decision_criteria",
+        "favorite_dishes",
+        "loved_restaurants",
+        "wishlist_restaurants",
+        "frequent_restaurants",
+        "aspirational_restaurants",
+    ]:
+        value = answers.get(key, [])
+        if isinstance(value, list) and value:
+            parts.append(f"{key}: " + ", ".join(str(item).strip() for item in value if str(item).strip()))
+
+    price = canonicalize_price_label(answers.get("price_comfort_level", "moderate")) or "moderate"
+    travel = str(answers.get("travel_willingness", "")).strip()
+    company = str(answers.get("dining_company", "")).strip()
+    novelty = str(answers.get("novelty_preference", "")).strip()
+    adventurousness = answers.get("adventurousness", 3)
+
+    parts.append(f"price comfort: {price}")
+    if travel:
+        parts.append(f"travel willingness: {travel}")
+    if company:
+        parts.append(f"dining company: {company}")
+    if novelty:
+        parts.append(f"novelty preference: {novelty}")
+    parts.append(f"adventurousness: {adventurousness}")
+
+    affinity_terms = normalized.get("restaurant_affinity_terms", [])
+    if affinity_terms:
+        parts.append("restaurant affinity: " + ", ".join(affinity_terms))
+
+    return " | ".join(part for part in parts if part).strip()
+
+
+# ---------------------------------------------------------------------------
+# User account and profile persistence
+# ---------------------------------------------------------------------------
 
 
 def _build_password_fields(password: str) -> dict:

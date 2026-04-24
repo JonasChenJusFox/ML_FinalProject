@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import streamlit as st
 
-from integration.price_utils import canonicalize_price_label
-from integration.user_repo import get_user_profile, save_user_profile
+from frontend.price_utils import canonicalize_price_label
+from integration.db import get_user_profile, save_user_profile
 
 DEFAULT_QUESTIONNAIRE = {
     "top_cuisines": [],

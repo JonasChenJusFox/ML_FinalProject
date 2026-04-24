@@ -11,89 +11,59 @@ Responsibilities:
 
 from __future__ import annotations
 
+import math
+import random
+
 import streamlit as st
 
-from frontend.adapters import get_current_origin_kwargs, normalize_results
+from frontend.adapters import normalize_results
 from frontend.auth import open_login_modal, open_questionnaire_modal
 from frontend.components.restaurant_card import render_restaurant_card
 from frontend.components.search_bar import HOME_PLACEHOLDER, render_search_bar
 from frontend.user_profile_state import init_user_profile_state
-from integration.api import get_recommendations_for_user, search_restaurants
-from integration.wrapped_repo import build_wrapped_stats
+from integration.api import search_restaurants
 
 
-def _search_from_home(query: str) -> None:
+def _commit_home_search(query: str) -> None:
     committed_query = query.strip()
     st.session_state.search_query = committed_query
     st.session_state.discover_query = committed_query
     st.session_state.discover_active_query = committed_query
     st.session_state.discover_page = 1
     st.session_state.page = "Discover"
+
+
+def _search_from_home(query: str) -> None:
+    _commit_home_search(query)
     st.rerun()
 
 
-def _should_use_nearby_fallback(
-    user_id: str,
-    restaurants: list[dict],
-) -> bool:
-    if user_id == "anonymous":
-        return True
+def _score_home_popularity(item: dict, seed: int) -> float:
+    rating = float(item.get("rating", 0.0) or 0.0)
+    review_count = float(item.get("review_count", 0.0) or 0.0)
+    business_id = str(item.get("business_id", ""))
+    jitter = random.Random(f"{seed}:{business_id}").uniform(0.0, 0.18)
+    popularity = math.log1p(max(0.0, review_count))
+    return (rating * 1.35) + (popularity * 0.55) + jitter
 
-    if st.session_state.get("onboarding_completed", False):
-        return False
 
-    wrapped_stats = build_wrapped_stats(user_id, restaurants)
-    return not (
-        wrapped_stats.get("saved_count", 0)
-        or wrapped_stats.get("reviewed_count", 0)
+def _frontend_home_fallback(restaurants: list[dict]) -> list[dict]:
+    normalized = normalize_results(restaurants or [])
+    seed = int(st.session_state.get("home_random_seed", 0) or 0)
+    ranked = sorted(
+        normalized,
+        key=lambda item: _score_home_popularity(item, seed),
+        reverse=True,
     )
-
-
-def _get_home_recommendations(
-    user_id: str,
-    origin_kwargs: dict,
-    restaurants: list[dict],
-) -> tuple[list[dict], bool]:
-    use_nearby_fallback = _should_use_nearby_fallback(user_id, restaurants)
-
-    if use_nearby_fallback:
-        nearby = search_restaurants(
-            query="",
-            filters=None,
-            user_id="anonymous",
-            top_k=10,
-            user_vector_only=False,
-            **origin_kwargs,
-        )
-        return nearby, True
-
-    ranked = get_recommendations_for_user(
-        user_id=user_id,
-        top_k=10,
-        candidate_top_k=60,
-        filters=None,
-        **origin_kwargs,
-    )
-    if ranked:
-        return ranked, False
-
-    return (
-        search_restaurants(
-            query="",
-            filters=None,
-            user_id=user_id,
-            top_k=10,
-            user_vector_only=True,
-            **origin_kwargs,
-        ),
-        False,
-    )
+    return ranked[:10]
 
 
 def render_home(restaurants: list[dict]) -> None:
     init_user_profile_state()
     if "home_search_query" not in st.session_state:
         st.session_state.home_search_query = st.session_state.get("search_query", "")
+    if "home_random_seed" not in st.session_state:
+        st.session_state.home_random_seed = random.randint(1, 10_000_000)
 
     st.markdown("## Looking for great food nearby? Just use NearBite.")
 
@@ -102,6 +72,7 @@ def render_home(restaurants: list[dict]) -> None:
         render_search_bar(
             key="home_search_query",
             placeholder=HOME_PLACEHOLDER,
+            on_change=lambda: _commit_home_search(st.session_state.get("home_search_query", "")),
         )
     with search_cols[1]:
         if st.button("Search", key="home_search_button", use_container_width=True):
@@ -109,7 +80,6 @@ def render_home(restaurants: list[dict]) -> None:
 
     current_user = st.session_state.get("current_user", {}) or {}
     user_id = current_user.get("username") or "anonymous"
-    origin_kwargs = get_current_origin_kwargs()
 
     if user_id == "anonymous":
         st.caption("Log in if you want questionnaire-based personalized recommendations.")
@@ -134,19 +104,25 @@ def render_home(restaurants: list[dict]) -> None:
             st.rerun()
         st.caption(helper_text)
 
-    ranked, showing_nearby = _get_home_recommendations(
-        user_id,
-        origin_kwargs,
-        restaurants,
-    )
-    ranked = normalize_results(ranked or restaurants or [])
+    if user_id == "anonymous":
+        ranked = _frontend_home_fallback(restaurants)
+        section_title = "Popular restaurants"
+    else:
+        ranked = normalize_results(
+            search_restaurants(
+                query="",
+                filters=None,
+                user_id=user_id,
+                top_k=10,
+                user_vector_only=True,
+            )
+        )
+        if not ranked:
+            ranked = _frontend_home_fallback(restaurants)
+        section_title = "Recommended restaurants"
 
     st.markdown(
-        (
-            "<div class='nb-section-title'>Nearby restaurants</div>"
-            if showing_nearby
-            else "<div class='nb-section-title'>Recommended restaurants</div>"
-        ),
+        f"<div class='nb-section-title'>{section_title}</div>",
         unsafe_allow_html=True,
     )
 

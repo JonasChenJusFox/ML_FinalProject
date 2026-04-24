@@ -14,6 +14,7 @@ Default model: sentence-transformers/multi-qa-mpnet-base-cos-v1.
 """
 
 from sentence_transformers import SentenceTransformer
+from integration.user_profile_model import build_profile_text
 
 
 # NOTE: This cache assumes a single model is used across the entire pipeline.
@@ -81,22 +82,22 @@ def embed_query(query: str) -> list[float]:
     return vector.tolist()
 
 
-def embed_user(user_document: str) -> list[float]:
-    """Embed a user profile document into a normalized vector.
+def embed_profile(raw_answers: dict) -> list[float]:
+    """Embed a user profile built from questionnaire answers.
 
-    The user_document should be a natural language representation of the
-    user's preferences (constructed by the user modeling module).
-    Must use the same model as embed_restaurant() and embed_query().
+    Converts ``raw_answers`` into an embedding-ready profile document via
+    ``build_profile_text`` and embeds that document using the shared model.
 
     Args:
-        user_document: Natural language string capturing user preferences.
+        raw_answers: User questionnaire answers dictionary.
 
     Returns:
         Normalized embedding vector as a list of floats.
     """
     model = get_embedding_model()
+    profile_document = build_profile_text(raw_answers)
     vector = model.encode(
-        user_document,
+        profile_document,
         normalize_embeddings=True,
         convert_to_numpy=True,
     )

@@ -96,46 +96,78 @@ def normalize_answers(raw_answers: dict) -> dict:
 
 
 def build_profile_text(raw_answers: dict) -> str:
-    """Build embedding-ready profile text from questionnaire answers."""
+    """Build embedding-ready profile text from normalized questionnaire signals."""
     answers = raw_answers if isinstance(raw_answers, dict) else {}
     normalized = normalize_answers(answers)
 
+    def _phrase(items: list[str]) -> str:
+        cleaned = [str(item).strip() for item in items if str(item).strip()]
+        if not cleaned:
+            return ""
+        if len(cleaned) == 1:
+            return cleaned[0]
+        if len(cleaned) == 2:
+            return f"{cleaned[0]} and {cleaned[1]}"
+        return f"{', '.join(cleaned[:-1])}, and {cleaned[-1]}"
+
+    top_cuisines = _phrase(normalized.get("cuisine_pref", []))
+    craving_preferences = _phrase(normalized.get("craving_tags", []))
+    dietary_restrictions = _phrase(normalized.get("dietary_tags", []))
+    typical_meals = _phrase(normalized.get("meal_tags", []))
+    favorite_dishes = _phrase(normalized.get("dish_tags", []))
+    dining_company = _phrase(normalized.get("company_tags", []))
+    decision_criteria = _phrase(list((normalized.get("decision_weights", {}) or {}).keys()))
+    restaurant_affinity_terms = _phrase(normalized.get("restaurant_affinity_terms", []))
+
+    price_level_numeric = normalized.get("price_level", {}).get("numeric", 2)
+    travel_willingness_km = normalized.get("max_travel_km", 1.6)
+    novelty_preference = normalized.get("novelty_level", 0.5)
+    adventurousness = normalized.get("adventure_level", 0.5)
+    price_text = {
+        1: "budget-friendly",
+        2: "moderate",
+        3: "expensive",
+        4: "luxury",
+    }.get(int(price_level_numeric), "moderate")
+
+    if novelty_preference >= 0.8:
+        novelty_text = "often seeks new places and cuisines"
+    elif novelty_preference <= 0.2:
+        novelty_text = "usually prefers familiar choices"
+    else:
+        novelty_text = "likes a mix of familiar spots and new experiences"
+
+    if adventurousness >= 0.75:
+        adventure_text = "is highly adventurous with food choices"
+    elif adventurousness <= 0.25:
+        adventure_text = "prefers safer, predictable food choices"
+    else:
+        adventure_text = "is moderately adventurous with food choices"
+
     parts: list[str] = []
+    if top_cuisines:
+        parts.append(f"Preferred cuisines include {top_cuisines}.")
+    if craving_preferences:
+        parts.append(f"Common cravings include {craving_preferences}.")
+    if favorite_dishes:
+        parts.append(f"Favorite dishes include {favorite_dishes}.")
+    if dietary_restrictions:
+        parts.append(f"Dietary requirements: {dietary_restrictions}.")
 
-    for key in [
-        "top_cuisines",
-        "craving_preferences",
-        "vibes_dining_style",
-        "dietary_restrictions",
-        "typical_meals",
-        "decision_criteria",
-        "favorite_dishes",
-        "loved_restaurants",
-        "wishlist_restaurants",
-        "frequent_restaurants",
-        "aspirational_restaurants",
-    ]:
-        value = answers.get(key, [])
-        if isinstance(value, list) and value:
-            parts.append(f"{key}: " + ", ".join(str(item).strip() for item in value if str(item).strip()))
+    parts.append(
+        f"Price preference is {price_text}, and typical travel tolerance is about {travel_willingness_km:.1f} km."
+    )
 
-    price = str(answers.get("price_comfort_level", "$$")).strip() or "$$"
-    travel = str(answers.get("travel_willingness", "")).strip()
-    company = str(answers.get("dining_company", "")).strip()
-    novelty = str(answers.get("novelty_preference", "")).strip()
-    adventurousness = answers.get("adventurousness", 3)
+    if dining_company:
+        parts.append(f"Usually dines with {dining_company}.")
+    if typical_meals:
+        parts.append(f"Typical meal context includes {typical_meals}.")
+    if decision_criteria:
+        parts.append(f"Main decision priorities are {decision_criteria}.")
 
-    parts.append(f"price comfort: {price}")
-    if travel:
-        parts.append(f"travel willingness: {travel}")
-    if company:
-        parts.append(f"dining company: {company}")
-    if novelty:
-        parts.append(f"novelty preference: {novelty}")
-    parts.append(f"adventurousness: {adventurousness}")
+    parts.append(f"The user {novelty_text} and {adventure_text}.")
 
-    affinity_terms = normalized.get("restaurant_affinity_terms", [])
-    if affinity_terms:
-        parts.append("restaurant affinity: " + ", ".join(affinity_terms))
+    if restaurant_affinity_terms:
+        parts.append(f"Restaurant affinity signals include {restaurant_affinity_terms}.")
 
-    return " | ".join(part for part in parts if part).strip()
+    return " ".join(part.strip() for part in parts if part.strip())

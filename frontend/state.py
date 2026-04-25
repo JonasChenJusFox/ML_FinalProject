@@ -57,8 +57,26 @@ def init_state(preview_restaurants: list[dict]) -> None:
     if "saved_ids" not in st.session_state:
         st.session_state.saved_ids = []
 
+    if "liked_ids" not in st.session_state:
+        st.session_state.liked_ids = []
+
     if "viewed_ids" not in st.session_state:
         st.session_state.viewed_ids = []
+
+    if "selected_zipcode" not in st.session_state:
+        st.session_state.selected_zipcode = ""
+
+    if "selected_area_label" not in st.session_state:
+        st.session_state.selected_area_label = ""
+
+    if "discover_auto_location_requested" not in st.session_state:
+        st.session_state.discover_auto_location_requested = False
+
+    if "location_geo_request_pending" not in st.session_state:
+        st.session_state.location_geo_request_pending = False
+
+    if "location_geo_nonce_consumed" not in st.session_state:
+        st.session_state.location_geo_nonce_consumed = ""
 
     if "preview_restaurants" not in st.session_state:
         st.session_state.preview_restaurants = preview_restaurants or []

@@ -7,6 +7,7 @@ Responsibilities:
 - Normalizes fields such as address, price, image, and review snippet
 - Computes travel time from the current origin
 - Provides helper functions for wrapped statistics and frontend filters
+- Restores cached geolocation context when the UI should return to the real current location
 - Keeps UI rendering logic separate from raw dataset structure
 """
 
@@ -17,11 +18,22 @@ from collections import Counter
 
 import streamlit as st
 
-from integration.api import NYU_LAT, NYU_LON, haversine_km as _haversine_km
+from frontend.location_utils import (
+    find_nearest_search_area,
+    get_location_filter_options,
+    haversine_km as _haversine_km,
+    infer_borough,
+)
+
+WALKING_KM_PER_MINUTE = 5.0 / 60.0
 
 
 def clean_text(value: str) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def display_text(value: str) -> str:
+    return clean_text(str(value or "").replace("_", " "))
 
 
 def shorten_text(value: str, limit: int = 160) -> str:
@@ -44,30 +56,117 @@ def get_current_origin() -> dict:
         and st.session_state.get("user_lat") is not None
         and st.session_state.get("user_lon") is not None
     ):
+        latitude = float(st.session_state["user_lat"])
+        longitude = float(st.session_state["user_lon"])
+        coords_key = (round(latitude, 5), round(longitude, 5))
+        if st.session_state.get("origin_label_cache_key") != coords_key:
+            nearest_area = find_nearest_search_area(latitude, longitude)
+            nearest_street = _find_nearest_street_label(latitude, longitude)
+            selected_zipcode = clean_text(st.session_state.get("selected_zipcode", ""))
+            selected_area_label = clean_text(st.session_state.get("selected_area_label", ""))
+            if selected_zipcode:
+                label = f"ZIP {selected_zipcode}"
+                travel_label = nearest_area["name"] if nearest_area else f"ZIP {selected_zipcode}"
+                area_label = nearest_area["name"] if nearest_area else ""
+            elif selected_area_label:
+                label = selected_area_label
+                travel_label = selected_area_label
+                area_label = selected_area_label
+            else:
+                label = nearest_street or (nearest_area["name"] if nearest_area else f"{latitude:.4f}, {longitude:.4f}")
+                travel_label = nearest_street or (nearest_area["name"] if nearest_area else "Current location")
+                area_label = nearest_area["name"] if nearest_area else ""
+            st.session_state.origin_label_cache_key = coords_key
+            st.session_state.origin_label = label
+            st.session_state.origin_travel_label = travel_label
+            st.session_state.origin_area_label = area_label
+
         return {
-            "label": "My location",
-            "lat": float(st.session_state["user_lat"]),
-            "lon": float(st.session_state["user_lon"]),
+            "label": st.session_state.get("origin_label", "Current location"),
+            "travel_label": st.session_state.get("origin_travel_label", "Current location"),
+            "area_label": st.session_state.get("origin_area_label", ""),
+            "lat": latitude,
+            "lon": longitude,
         }
 
     return {
-        "label": "NYU",
-        "lat": NYU_LAT,
-        "lon": NYU_LON,
+        "label": "Location not set",
+        "travel_label": "",
+        "area_label": "",
+        "lat": None,
+        "lon": None,
     }
 
 
-def set_user_origin(lat: float, lon: float) -> None:
+def get_current_origin_kwargs() -> dict:
+    origin = get_current_origin()
+    return {
+        "origin_lat": origin["lat"],
+        "origin_lon": origin["lon"],
+    }
+
+
+def set_user_origin(
+    lat: float,
+    lon: float,
+    *,
+    zipcode: str | None = None,
+    area_label: str | None = None,
+) -> None:
     st.session_state.use_my_location = True
     st.session_state.user_lat = float(lat)
     st.session_state.user_lon = float(lon)
+    st.session_state.selected_zipcode = clean_text(zipcode) if zipcode else ""
+    st.session_state.selected_area_label = clean_text(area_label) if area_label else ""
+    st.session_state.origin_label_cache_key = None
 
 
-def reset_origin_to_nyu() -> None:
+def clear_user_origin() -> None:
     st.session_state.use_my_location = False
     st.session_state.user_lat = None
     st.session_state.user_lon = None
+    st.session_state.selected_zipcode = ""
+    st.session_state.selected_area_label = ""
+    st.session_state.origin_label = ""
+    st.session_state.origin_travel_label = ""
+    st.session_state.origin_area_label = ""
+    st.session_state.origin_label_cache_key = None
 
+
+def restore_cached_current_location() -> None:
+    geo_value = st.session_state.get("location_geo_value", {}) or {}
+    latitude = geo_value.get("latitude")
+    longitude = geo_value.get("longitude")
+
+    try:
+        if latitude is not None and longitude is not None:
+            set_user_origin(float(latitude), float(longitude))
+            st.session_state.location_inputs_reset_pending = True
+            st.session_state.location_error_message = ""
+            return
+    except (TypeError, ValueError):
+        pass
+
+    clear_user_origin()
+    st.session_state.discover_auto_location_requested = False
+    st.session_state.location_inputs_reset_pending = True
+    st.session_state.location_error_message = ""
+
+
+
+def _extract_coordinates(raw: dict) -> tuple[float, float]:
+    coordinates = raw.get("coordinates", {})
+
+    lat = _safe_float(raw.get("latitude"), 0.0)
+    lon = _safe_float(raw.get("longitude"), 0.0)
+
+    if isinstance(coordinates, dict):
+        if not lat:
+            lat = _safe_float(coordinates.get("latitude"), 0.0)
+        if not lon:
+            lon = _safe_float(coordinates.get("longitude"), 0.0)
+
+    return lat, lon
 
 
 def _minutes_from_current_origin(lat: float, lon: float) -> int:
@@ -75,10 +174,48 @@ def _minutes_from_current_origin(lat: float, lon: float) -> int:
         return 0
 
     origin = get_current_origin()
+    if origin["lat"] is None or origin["lon"] is None:
+        return 0
     km = _haversine_km(origin["lat"], origin["lon"], lat, lon)
 
-    # loose product-style estimate
-    return max(5, round(km / 0.33))
+    # Use a conservative walking-speed estimate so the card UI does not
+    # understate travel time by a large margin.
+    return max(3, round(km / WALKING_KM_PER_MINUTE))
+
+
+def _street_segment(address: str) -> str:
+    street = clean_text(address).split(",")[0].strip()
+    return street
+
+
+def _find_nearest_street_label(latitude: float, longitude: float) -> str:
+    candidates = st.session_state.get("preview_restaurants", []) or []
+    nearest_street = ""
+    nearest_distance = None
+
+    for raw in candidates:
+        if not isinstance(raw, dict):
+            continue
+        lat, lon = _extract_coordinates(raw)
+        if not lat or not lon:
+            continue
+        address = _extract_address(raw)
+        street = _street_segment(address)
+        if not street or street == "Address not listed":
+            continue
+
+        distance = _haversine_km(latitude, longitude, lat, lon)
+        if nearest_distance is None or distance < nearest_distance:
+            nearest_distance = distance
+            nearest_street = street
+
+    if not nearest_street:
+        return ""
+
+    if nearest_distance is not None and nearest_distance <= 0.25:
+        return nearest_street
+
+    return f"Near {nearest_street}"
 
 
 def _extract_review_snippet(reviews: list) -> str:
@@ -91,6 +228,13 @@ def _extract_review_snippet(reviews: list) -> str:
             text = clean_text(item)
             if text:
                 return text
+    return ""
+
+
+def _extract_description(raw: dict) -> str:
+    description = clean_text(raw.get("embedding_text", ""))
+    if description:
+        return description
     return ""
 
 
@@ -143,6 +287,26 @@ def _extract_address(raw: dict) -> str:
     return "Address not listed"
 
 
+def _extract_location_search_text(raw: dict) -> str:
+    display_address = raw.get("display_address", [])
+    display_text = " ".join(
+        clean_text(item) for item in display_address
+        if clean_text(item)
+    ) if isinstance(display_address, list) else clean_text(display_address)
+
+    parts = [
+        raw.get("address", ""),
+        raw.get("address1", ""),
+        raw.get("address2", ""),
+        raw.get("address3", ""),
+        raw.get("city", ""),
+        raw.get("neighborhood", ""),
+        raw.get("borough", ""),
+        display_text,
+    ]
+    return clean_text(" ".join(clean_text(part) for part in parts if clean_text(part)))
+
+
 def _extract_price_display(raw: dict) -> str:
     price = clean_text(raw.get("price", ""))
     if price:
@@ -173,32 +337,30 @@ def normalize_restaurant(raw: dict) -> dict:
     if not isinstance(reviews, list):
         reviews = []
 
-    coords = raw.get("coordinates") or {}
-    lat = _safe_float(raw.get("latitude") or coords.get("latitude"), 0.0)
-    lon = _safe_float(raw.get("longitude") or coords.get("longitude"), 0.0)
+    lat, lon = _extract_coordinates(raw)
 
     return {
-    "business_id": clean_text(raw.get("business_id", "")),
-    "name": clean_text(raw.get("name", "Unknown")),
-    "categories": categories,
-    "borough": clean_text(raw.get("borough", "Unknown")),
-    "rating": _safe_float(raw.get("rating"), 0.0),
-
-    "price_display": _extract_price_display(raw),
-    "price": clean_text(raw.get("price", "")),
-    "price_original": clean_text(raw.get("price_original", "")),
-    "price_level": raw.get("price_level", 0),
-
-    "address": _extract_address(raw),
-    "latitude": lat,
-    "longitude": lon,
-    "image_url": _extract_image_url(raw),
-    "review_snippet": _extract_review_snippet(reviews),
-    "google_reviews": reviews,
-    "url": clean_text(raw.get("url", "")),
-    "score": _safe_float(raw.get("score", 0.0)),
-    "travel_minutes": _minutes_from_current_origin(lat, lon),
-}
+        "business_id": clean_text(raw.get("business_id", "")),
+        "name": clean_text(raw.get("name", "Unknown")),
+        "categories": categories,
+        "borough": display_text(infer_borough(raw) or "Unknown"),
+        "rating": _safe_float(raw.get("rating"), 0.0),
+        "price_display": _extract_price_display(raw),
+        "price": clean_text(raw.get("price", "")),
+        "price_original": clean_text(raw.get("price_original", "")),
+        "price_level": raw.get("price_level", 0),
+        "address": _extract_address(raw),
+        "location_search_text": _extract_location_search_text(raw),
+        "latitude": lat,
+        "longitude": lon,
+        "image_url": _extract_image_url(raw),
+        "review_snippet": _extract_review_snippet(reviews),
+        "description": _extract_description(raw),
+        "google_reviews": reviews,
+        "url": clean_text(raw.get("url", "")),
+        "score": _safe_float(raw.get("score", raw.get("final_score", 0.0)), 0.0),
+        "travel_minutes": _minutes_from_current_origin(lat, lon),
+    }
 
 
 def normalize_results(restaurants: list[dict]) -> list[dict]:
@@ -233,9 +395,12 @@ def get_filter_options(restaurants: list[dict]) -> dict:
     )
     boroughs = sorted(
         {
-            item.get("borough", "")
-            for item in normalized
-            if item.get("borough", "")
+            *get_location_filter_options(),
+            *{
+                item.get("borough", "")
+                for item in normalized
+                if item.get("borough", "")
+            },
         }
     )
     prices = sorted(

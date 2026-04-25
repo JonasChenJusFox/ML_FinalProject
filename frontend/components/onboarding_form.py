@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from frontend.auth import close_questionnaire_modal
+from frontend.price_utils import PRICE_LABELS
 from frontend.user_profile_state import (
     get_questionnaire_answers,
     save_questionnaire_answers,
@@ -98,6 +100,8 @@ NOVELTY_OPTIONS = [
     "mix of both",
     "try new things",
 ]
+QUESTIONNAIRE_PRICE_OPTIONS = PRICE_LABELS
+TOP_CUISINE_NONE_OPTION = "None"
 
 
 def parse_comma_tags(raw: str) -> list[str]:
@@ -123,7 +127,70 @@ def _safe_multiselect_defaults(options: list[str], selected: list[str]) -> list[
     return [item for item in selected if item in options]
 
 
-def render_onboarding_form() -> None:
+def _safe_top_cuisine_default(selected: list[str], index: int) -> str:
+    """
+    Return the default value for one of the three cuisine pickers.
+    """
+    if index < len(selected):
+        return selected[index]
+    return TOP_CUISINE_NONE_OPTION
+
+
+def _normalize_top_cuisine_selection(selected_items: list[str]) -> list[str]:
+    """
+    Remove blanks while preserving user order.
+    """
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in selected_items:
+        if not item or item == TOP_CUISINE_NONE_OPTION or item in seen:
+            continue
+        normalized.append(item)
+        seen.add(item)
+    return normalized
+
+
+def _normalize_multi_choice_selection(selected_items: list[str]) -> list[str]:
+    """
+    Remove duplicates while preserving order.
+    """
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in selected_items:
+        if not item or item in seen:
+            continue
+        normalized.append(item)
+        seen.add(item)
+    return normalized
+
+
+def _render_checkbox_grid(
+    *,
+    label: str,
+    options: list[str],
+    selected: list[str],
+    key_prefix: str,
+    columns: int = 3,
+) -> list[str]:
+    """
+    Render a stable multi-select UI without dropdown popovers.
+    """
+    st.markdown(f"**{label}**")
+    cols = st.columns(columns)
+    chosen: list[str] = []
+    for idx, option in enumerate(options):
+        with cols[idx % columns]:
+            checked = st.checkbox(
+                option,
+                value=option in selected,
+                key=f"{key_prefix}_{idx}",
+            )
+            if checked:
+                chosen.append(option)
+    return _normalize_multi_choice_selection(chosen)
+
+
+def render_onboarding_form(*, show_header: bool = True) -> None:
     """
     Render the onboarding questionnaire with database-backed prefilled defaults.
     """
@@ -154,7 +221,7 @@ def render_onboarding_form() -> None:
         answers.get("decision_criteria", []),
     )
 
-    default_price_range = answers.get("price_comfort_level", "$$")
+    default_price_range = answers.get("price_comfort_level", "moderate")
     default_travel = answers.get("travel_willingness", "Short commute (10–20 min / ~1 mi)")
     default_dining_company = answers.get("dining_company", "Small group (3–5)")
     default_novelty = answers.get("novelty_preference", "mix of both")
@@ -166,39 +233,77 @@ def render_onboarding_form() -> None:
     default_frequent_restaurants = ", ".join(answers.get("frequent_restaurants", []))
     default_aspirational_restaurants = ", ".join(answers.get("aspirational_restaurants", []))
 
-    st.subheader("User Onboarding Questionnaire")
+    if show_header:
+        st.subheader("User Onboarding Questionnaire")
+    st.markdown("<div class='nb-recommendation-form-anchor'></div>", unsafe_allow_html=True)
 
     with st.form("user_onboarding_form"):
-        top_cuisines = st.multiselect(
-            "What are your top 3 cuisines?",
-            CUISINES,
-            default=default_top_cuisines,
-            max_selections=3,
+        st.markdown("**What are your top 3 cuisines?**")
+        st.caption("Pick up to 3 cuisines. Leave any extra slot as None.")
+        cuisine_options = [TOP_CUISINE_NONE_OPTION, *CUISINES]
+        cuisine_col_1, cuisine_col_2, cuisine_col_3 = st.columns(3)
+        with cuisine_col_1:
+            top_cuisine_1 = st.selectbox(
+                "Cuisine 1",
+                cuisine_options,
+                index=_safe_index(
+                    cuisine_options,
+                    _safe_top_cuisine_default(default_top_cuisines, 0),
+                ),
+                key="questionnaire_top_cuisine_1",
+            )
+        with cuisine_col_2:
+            top_cuisine_2 = st.selectbox(
+                "Cuisine 2",
+                cuisine_options,
+                index=_safe_index(
+                    cuisine_options,
+                    _safe_top_cuisine_default(default_top_cuisines, 1),
+                ),
+                key="questionnaire_top_cuisine_2",
+            )
+        with cuisine_col_3:
+            top_cuisine_3 = st.selectbox(
+                "Cuisine 3",
+                cuisine_options,
+                index=_safe_index(
+                    cuisine_options,
+                    _safe_top_cuisine_default(default_top_cuisines, 2),
+                ),
+                key="questionnaire_top_cuisine_3",
+            )
+        top_cuisines = _normalize_top_cuisine_selection(
+            [top_cuisine_1, top_cuisine_2, top_cuisine_3]
         )
 
-        cravings = st.multiselect(
-            "What kind of food are you most often craving?",
-            CRAVINGS,
-            default=default_cravings,
+        cravings = _render_checkbox_grid(
+            label="What kind of food are you most often craving?",
+            options=CRAVINGS,
+            selected=default_cravings,
+            key_prefix="questionnaire_cravings",
         )
 
         price_range = st.selectbox(
             "What's your price comfort level?",
-            ["$", "$$", "$$$", "$$$$"],
-            index=_safe_index(["$", "$$", "$$$", "$$$$"], default_price_range, default_index=1),
+            QUESTIONNAIRE_PRICE_OPTIONS,
+            index=_safe_index(QUESTIONNAIRE_PRICE_OPTIONS, default_price_range, default_index=1),
         )
 
-        vibes = st.multiselect(
-            "Which vibes match your usual dining style?",
-            VIBES,
-            default=default_vibes,
+        vibes = _render_checkbox_grid(
+            label="Which vibes match your usual dining style?",
+            options=VIBES,
+            selected=default_vibes,
+            key_prefix="questionnaire_vibes",
         )
 
-        dietary = st.multiselect(
-            "Any dietary restrictions or preferences?",
-            DIETARY,
-            default=default_dietary,
+        dietary = _render_checkbox_grid(
+            label="Any dietary restrictions or preferences?",
+            options=DIETARY,
+            selected=default_dietary,
+            key_prefix="questionnaire_dietary",
         )
+        if "None" in dietary and len(dietary) > 1:
+            dietary = ["None"]
 
         adventurousness = st.slider(
             "How adventurous are you with new food?",
@@ -220,16 +325,18 @@ def render_onboarding_form() -> None:
             index=_safe_index(DINING_COMPANY_OPTIONS, default_dining_company, default_index=2),
         )
 
-        meals = st.multiselect(
-            "What meals do you usually go out for?",
-            MEALS,
-            default=default_meals,
+        meals = _render_checkbox_grid(
+            label="What meals do you usually go out for?",
+            options=MEALS,
+            selected=default_meals,
+            key_prefix="questionnaire_meals",
         )
 
-        decision_style = st.multiselect(
-            "How do you usually choose restaurants?",
-            DECISION_STYLE,
-            default=default_decision_style,
+        decision_style = _render_checkbox_grid(
+            label="How do you usually choose restaurants?",
+            options=DECISION_STYLE,
+            selected=default_decision_style,
+            key_prefix="questionnaire_decision_style",
         )
 
         novelty_preference = st.radio(
@@ -271,6 +378,17 @@ def render_onboarding_form() -> None:
         submitted = st.form_submit_button("Save profile", use_container_width=True)
 
         if submitted:
+            raw_top_cuisines = [top_cuisine_1, top_cuisine_2, top_cuisine_3]
+            if len(top_cuisines) != len(
+                [
+                    item
+                    for item in raw_top_cuisines
+                    if item and item != TOP_CUISINE_NONE_OPTION
+                ]
+            ):
+                st.error("Please choose up to 3 different cuisines.")
+                return
+
             payload = {
                 "top_cuisines": top_cuisines,
                 "craving_preferences": cravings,
@@ -292,6 +410,6 @@ def render_onboarding_form() -> None:
 
             save_questionnaire_answers(payload)
             st.success("Profile saved.")
-            st.session_state.editing_questionnaire = False
-            st.session_state.page = "Recommendation"
+            close_questionnaire_modal()
+            st.session_state.page = "Home"
             st.rerun()

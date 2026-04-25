@@ -29,6 +29,9 @@ def render_map(restaurants: list[dict]) -> None:
 
     m = folium.Map(location=[center_lat, center_lon], zoom_start=12, control_scale=True)
 
+    if focus_id:
+        st.caption(f"Focused on: {focused.get('name', 'Selected restaurant')}")
+
     for item in restaurants:
         lat = item.get("latitude")
         lon = item.get("longitude")
@@ -46,14 +49,14 @@ def render_map(restaurants: list[dict]) -> None:
             folium.Marker(
                 [lat, lon],
                 popup=popup,
-                tooltip=business_id,
+                tooltip=name,
                 icon=folium.Icon(color="red", icon="cutlery", prefix="fa"),
             ).add_to(m)
         else:
             folium.Marker(
                 [lat, lon],
                 popup=popup,
-                tooltip=business_id,
+                tooltip=name,
                 icon=folium.Icon(color="orange", icon="cutlery", prefix="fa"),
             ).add_to(m)
 
@@ -61,16 +64,27 @@ def render_map(restaurants: list[dict]) -> None:
         m,
         width=None,
         height=420,
-        returned_objects=["last_object_clicked_tooltip"],
+        returned_objects=["last_object_clicked_popup"],
     )
 
     clicked = None
     if isinstance(payload, dict):
-        clicked = payload.get("last_object_clicked_tooltip")
+        clicked_popup = payload.get("last_object_clicked_popup")
+        if isinstance(clicked_popup, str):
+            clicked = clicked_popup.split(" · ⭐ ", 1)[0].strip()
 
-    if clicked and clicked != st.session_state.get("focus_business_id"):
-        st.session_state.focus_business_id = clicked
-        st.session_state.jump_to_business_id = clicked
+    if clicked:
+        clicked_restaurant = next(
+            (item for item in restaurants if item.get("name") == clicked),
+            None,
+        )
+        clicked_business_id = clicked_restaurant.get("business_id") if clicked_restaurant else None
+    else:
+        clicked_business_id = None
+
+    if clicked_business_id and clicked_business_id != st.session_state.get("focus_business_id"):
+        st.session_state.focus_business_id = clicked_business_id
+        st.session_state.jump_to_business_id = clicked_business_id
 
         st.session_state.page = "Discover"
         st.rerun()

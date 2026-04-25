@@ -18,7 +18,11 @@ from pathlib import Path
 
 import certifi
 from dotenv import load_dotenv
-from pymongo import MongoClient
+
+try:
+    from pymongo import MongoClient
+except ImportError:  # pragma: no cover - local fallback path
+    MongoClient = None
 
 load_dotenv()
 
@@ -125,6 +129,18 @@ class _LocalCollection:
                 _write_local_db(payload)
                 return
 
+    def delete_many(self, query: dict) -> None:
+        payload = self._get_store()
+        docs = payload.get(self.name, [])
+        remaining = [
+            item
+            for item in docs
+            if not (isinstance(item, dict) and _matches_filter(item, query))
+        ]
+        if len(remaining) != len(docs):
+            payload[self.name] = remaining
+            _write_local_db(payload)
+
     def find(self, query: dict, projection: dict | None = None):
         payload = self._get_store()
         output = []
@@ -151,7 +167,7 @@ class _LocalCollection:
 
 
 def _init_mongo():
-    if not MONGO_URI:
+    if MongoClient is None or not MONGO_URI:
         return None, None
     try:
         mongo_client = MongoClient(

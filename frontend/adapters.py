@@ -228,16 +228,12 @@ def normalize_results(restaurants: list[dict]) -> list[dict]:
 def sort_results(restaurants: list[dict], focus_business_id: str | None = None) -> list[dict]:
     normalized = normalize_results(restaurants)
 
-    def sort_key(item: dict):
-        focused_rank = 0 if focus_business_id and item["business_id"] == focus_business_id else 1
-        return (
-            focused_rank,
-            -(item.get("score", 0.0) or 0.0),
-            -(item.get("rating", 0.0) or 0.0),
-            item.get("name", ""),
-        )
+    if not focus_business_id:
+        return normalized
 
-    return sorted(normalized, key=sort_key)
+    focused = [item for item in normalized if item["business_id"] == focus_business_id]
+    remainder = [item for item in normalized if item["business_id"] != focus_business_id]
+    return focused + remainder
 
 
 def get_filter_options(restaurants: list[dict]) -> dict:

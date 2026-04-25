@@ -15,6 +15,7 @@ Responsibilities:
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from data.pipeline import load_restaurants, load_user_interactions
@@ -43,8 +44,19 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 RESTAURANT_EMBEDDINGS_PATH = REPO_ROOT / "data" / "restaurant_embeddings.json"
 CLUSTER_CENTROIDS_PATH = REPO_ROOT / "data" / "cluster_centroids.json"
 PERSONALIZATION_ALPHA = 0.3
+PROFILE_VECTOR_WEIGHT = 0.7
+INTERACTION_VECTOR_WEIGHT = 0.3
+SOFT_FILTER_MIN_RESULTS = 10
+HARD_FILTER_FALLBACK_MIN_RESULTS = 5
 DEFAULT_NEARBY_DISTANCE_KM = 5.0
 WALKING_SPEED_KMPH = 5.0
+INTERACTION_WEIGHTS = {
+    "save": 1.0,
+    "like": 1.5,
+    ("review", "love"): 2.0,
+    ("review", "neutral"): 0.5,
+    ("review", "hate"): 0.0,
+}
 
 
 def _safe_float(value, default: float = 0.0) -> float:
@@ -186,6 +198,29 @@ def _adapt_filters(filters: dict | None) -> dict:
     origin_lat = filters.get("origin_lat")
     origin_lon = filters.get("origin_lon")
 
+    discover_categories = filters.get("discover_categories", [])
+    discover_prices = filters.get("discover_prices", [])
+    discover_min_rating = filters.get("discover_min_rating")
+    discover_radius_minutes = filters.get("discover_radius_minutes")
+    discover_borough = filters.get("discover_borough")
+
+    explicit_cuisines = bool(cuisines)
+    explicit_price = bool(prices)
+    explicit_min_rating = filters.get("min_rating") is not None
+    explicit_max_distance = filters.get("max_distance_km") is not None
+    explicit_borough = borough not in (None, "All")
+
+    if not explicit_cuisines and isinstance(discover_categories, list):
+        explicit_cuisines = bool(discover_categories)
+    if not explicit_price and isinstance(discover_prices, list):
+        explicit_price = bool(discover_prices)
+    if not explicit_min_rating and discover_min_rating is not None:
+        explicit_min_rating = float(discover_min_rating) != 4.0
+    if not explicit_max_distance and discover_radius_minutes is not None:
+        explicit_max_distance = int(discover_radius_minutes) != 30
+    if not explicit_borough and discover_borough is not None:
+        explicit_borough = discover_borough != "All"
+
     return {
         "cuisines": list(cuisines) if isinstance(cuisines, list) else [],
         "price": list(prices) if isinstance(prices, list) else [],
@@ -194,6 +229,11 @@ def _adapt_filters(filters: dict | None) -> dict:
         "borough": borough,
         "origin_lat": origin_lat,
         "origin_lon": origin_lon,
+        "explicit_cuisines": explicit_cuisines,
+        "explicit_price": explicit_price,
+        "explicit_min_rating": explicit_min_rating,
+        "explicit_max_distance": explicit_max_distance,
+        "explicit_borough": explicit_borough,
     }
 
 
@@ -214,30 +254,18 @@ def _normalize_borough_name(location: str | None) -> str | None:
 
 
 def _merge_query_signals(filters: dict, parsed_query: dict[str, object]) -> dict:
-    """Merge parsed query signals into filters, resolving location to coordinates if available."""
+    """Merge query signals without turning soft parsed hints into hard filters."""
     merged = dict(filters)
 
-    parsed_price = parsed_query.get("price")
-    if isinstance(parsed_price, str) and parsed_price and parsed_price != "unknown" and not merged.get("price"):
-        merged["price"] = [parsed_price]
-
-    # Extract parsed location and try to resolve to coordinates
     parsed_location = parsed_query.get("location")
     if isinstance(parsed_location, str) and parsed_location:
-        # Try to resolve location to coordinates (neighborhood -> centroid, keyword -> neighborhood -> centroid)
         coords = resolve_location_coordinate(parsed_location)
         if coords:
-            # Store origin coordinates for distance calculation
             origin_lat, origin_lon = coords
             if merged.get("origin_lat") is None:
                 merged["origin_lat"] = origin_lat
             if merged.get("origin_lon") is None:
                 merged["origin_lon"] = origin_lon
-        
-        # Also normalize to borough for filtering (fallback/additional)
-        borough = _normalize_borough_name(parsed_location)
-        if borough and (not merged.get("borough") or merged.get("borough") == "All"):
-            merged["borough"] = borough
 
     distance_intent = parsed_query.get("distance_time_intent")
     if isinstance(distance_intent, dict) and merged.get("max_distance_km") is None:
@@ -246,8 +274,6 @@ def _merge_query_signals(filters: dict, parsed_query: dict[str, object]) -> dict
             max_minutes = distance_intent.get("max_minutes")
             if isinstance(max_minutes, (int, float)):
                 max_distance_km = float(max_minutes) * (WALKING_SPEED_KMPH / 60.0)
-            elif distance_intent.get("near_me"):
-                max_distance_km = DEFAULT_NEARBY_DISTANCE_KM
 
         if max_distance_km is not None:
             merged["max_distance_km"] = max_distance_km
@@ -261,12 +287,155 @@ def _apply_borough_filter(restaurants: list[dict], borough: str | None) -> list[
     return [item for item in restaurants if item.get("borough") == borough]
 
 
+def _restaurant_matches_dietary(restaurant: dict, dietary_terms: list[str]) -> bool:
+    if not dietary_terms:
+        return True
+
+    searchable_parts: list[str] = []
+    for key in ("name", "embedding_text", "document"):
+        value = restaurant.get(key)
+        if isinstance(value, str) and value.strip():
+            searchable_parts.append(value.strip().lower())
+
+    for key in ("categories", "tags"):
+        values = restaurant.get(key, [])
+        if isinstance(values, list):
+            searchable_parts.extend(str(value).strip().lower() for value in values if str(value).strip())
+
+    searchable_text = " ".join(searchable_parts)
+    return any(str(term).strip().lower() in searchable_text for term in dietary_terms)
+
+
+def _apply_hard_filters(restaurants: list[dict], filters: dict) -> list[dict]:
+    filtered = apply_filters(restaurants, filters)
+    filtered = _apply_borough_filter(filtered, filters.get("borough"))
+
+    dietary = filters.get("dietary", [])
+    if isinstance(dietary, list) and dietary:
+        filtered = [
+            item
+            for item in filtered
+            if _restaurant_matches_dietary(item, dietary)
+        ]
+
+    return filtered
+
+
+def _build_filter_stages(
+    adapted_filters: dict,
+    parsed_query: dict[str, object] | None,
+) -> tuple[dict, dict, dict]:
+    explicit_hard_filters = {
+        "cuisines": adapted_filters.get("cuisines", []) if adapted_filters.get("explicit_cuisines") else [],
+        "price": adapted_filters.get("price", []) if adapted_filters.get("explicit_price") else [],
+        "min_rating": adapted_filters.get("min_rating") if adapted_filters.get("explicit_min_rating") else None,
+        "max_distance_km": adapted_filters.get("max_distance_km") if adapted_filters.get("explicit_max_distance") else None,
+        "borough": adapted_filters.get("borough") if adapted_filters.get("explicit_borough") else None,
+    }
+
+    query_hard_filters = dict(explicit_hard_filters)
+    soft_preferences: dict[str, object] = {
+        "cuisines": [],
+        "price": None,
+        "location": None,
+        "borough": None,
+        "occasion_vibe": [],
+        "meal_context": [],
+    }
+
+    if not parsed_query:
+        return explicit_hard_filters, query_hard_filters, soft_preferences
+
+    dietary = parsed_query.get("dietary", [])
+    if isinstance(dietary, list) and dietary:
+        query_hard_filters["dietary"] = [str(item).strip().lower() for item in dietary if str(item).strip()]
+
+    distance_intent = parsed_query.get("distance_time_intent")
+    if isinstance(distance_intent, dict) and not explicit_hard_filters.get("max_distance_km"):
+        max_km = distance_intent.get("max_km")
+        if max_km is None:
+            max_minutes = distance_intent.get("max_minutes")
+            if isinstance(max_minutes, (int, float)):
+                max_km = float(max_minutes) * (WALKING_SPEED_KMPH / 60.0)
+        if max_km is not None:
+            query_hard_filters["max_distance_km"] = max_km
+
+    parsed_price = parsed_query.get("price")
+    if isinstance(parsed_price, str) and parsed_price and parsed_price != "unknown":
+        soft_preferences["price"] = parsed_price
+
+    parsed_location = parsed_query.get("location")
+    if isinstance(parsed_location, str) and parsed_location:
+        soft_preferences["location"] = parsed_location
+        parsed_borough = _normalize_borough_name(parsed_location)
+        if parsed_borough:
+            soft_preferences["borough"] = parsed_borough
+
+    for key in ("occasion_vibe", "meal_context"):
+        values = parsed_query.get(key, [])
+        if isinstance(values, list):
+            soft_preferences[key] = [str(item).strip().lower() for item in values if str(item).strip()]
+
+    return explicit_hard_filters, query_hard_filters, soft_preferences
+
+
+def _soft_match_score(restaurant: dict, soft_preferences: dict) -> float:
+    score = 0.0
+
+    soft_price = soft_preferences.get("price")
+    if isinstance(soft_price, str) and soft_price.strip():
+        restaurant_price = str(restaurant.get("price") or "").strip().lower()
+        if restaurant_price == soft_price.strip().lower():
+            score += 1.0
+
+    soft_borough = soft_preferences.get("borough")
+    if isinstance(soft_borough, str) and soft_borough.strip():
+        if str(restaurant.get("borough") or "").strip().lower() == soft_borough.strip().lower():
+            score += 1.0
+
+    searchable_parts: list[str] = []
+    for key in ("name", "embedding_text", "document"):
+        value = restaurant.get(key)
+        if isinstance(value, str) and value.strip():
+            searchable_parts.append(value.strip().lower())
+    for key in ("categories", "tags"):
+        values = restaurant.get(key, [])
+        if isinstance(values, list):
+            searchable_parts.extend(str(value).strip().lower() for value in values if str(value).strip())
+    searchable_text = " ".join(searchable_parts)
+
+    soft_location = soft_preferences.get("location")
+    if isinstance(soft_location, str) and soft_location.strip() and soft_location.strip().lower() in searchable_text:
+        score += 1.0
+
+    for key in ("occasion_vibe", "meal_context", "cuisines"):
+        values = soft_preferences.get(key, [])
+        if not isinstance(values, list):
+            continue
+        for value in values:
+            normalized = str(value).strip().lower().replace("_", " ")
+            if normalized and normalized in searchable_text:
+                score += 1.0
+
+    return score
+
+
+def _apply_soft_preference_filter(restaurants: list[dict], soft_preferences: dict) -> list[dict]:
+    if not restaurants:
+        return []
+
+    scored = [
+        (restaurant, _soft_match_score(restaurant, soft_preferences))
+        for restaurant in restaurants
+    ]
+    preferred = [restaurant for restaurant, score in scored if score > 0.0]
+    if len(preferred) >= SOFT_FILTER_MIN_RESULTS:
+        return preferred
+    return list(restaurants)
+
+
 def _build_user_embedding_if_available(user_id: str) -> list[float] | None:
-    """Build user embedding with three-tier fallback:
-    1. Stored latest_embedding from profile (fastest)
-    2. Rebuild from profile_text and persist
-    3. Build from interaction history (for users without a profile)
-    """
+    """Build a profile-based user embedding if the questionnaire/profile exists."""
     if not user_id or user_id == "anonymous":
         return None
 
@@ -291,30 +460,98 @@ def _build_user_embedding_if_available(user_id: str) -> list[float] | None:
             except Exception:
                 pass
 
-    # Tier 3: fall back to interaction history
+    return None
+
+
+def _normalize_vector(vector: list[float] | None) -> list[float] | None:
+    if not isinstance(vector, list) or not vector:
+        return None
+
+    norm = math.sqrt(sum(value * value for value in vector))
+    if norm <= 0.0:
+        return None
+    return [value / norm for value in vector]
+
+
+def _blend_vectors(
+    left: list[float] | None,
+    right: list[float] | None,
+    left_weight: float,
+    right_weight: float,
+) -> list[float] | None:
+    if left is None:
+        return _normalize_vector(right)
+    if right is None:
+        return _normalize_vector(left)
+    if len(left) != len(right):
+        return _normalize_vector(left)
+
+    blended = [
+        (left_weight * left_value) + (right_weight * right_value)
+        for left_value, right_value in zip(left, right)
+    ]
+    return _normalize_vector(blended)
+
+
+def _resolve_interaction_weight(record: dict) -> float:
+    interaction_type = str(record.get("interaction_type") or "").strip().lower()
+    if interaction_type == "review":
+        review_signal = str(record.get("review_signal") or "").strip().lower()
+        return float(INTERACTION_WEIGHTS.get(("review", review_signal), 0.0))
+    return float(INTERACTION_WEIGHTS.get(interaction_type, 0.0))
+
+
+def _build_interaction_vector(user_id: str) -> list[float] | None:
+    if not user_id or user_id == "anonymous":
+        return None
+
     interactions = load_user_interactions(user_id)
     if not interactions:
         return None
 
-    tags: list[str] = []
-    actions: list[str] = []
+    cluster_index, _cluster_centroids = _get_cluster_assets()
+    if cluster_index is not None:
+        embedding_by_business_id = {
+            str(item.get("business_id", "")): item.get("embedding")
+            for item in cluster_index
+            if isinstance(item, dict) and isinstance(item.get("embedding"), list) and item.get("embedding")
+        }
+    else:
+        index, _restaurants = _get_index()
+        embedding_by_business_id = {
+            str(restaurant.get("business_id", "")): embedding
+            for restaurant, embedding in index
+            if isinstance(restaurant, dict) and isinstance(embedding, list) and embedding
+        }
+
+    weighted_sum: list[float] | None = None
+    total_weight = 0.0
+
     for record in interactions:
         if not isinstance(record, dict):
             continue
-        interaction_type = record.get("interaction_type")
-        if isinstance(interaction_type, str) and interaction_type.strip():
-            actions.append(interaction_type.strip())
-        inferred_tags = record.get("inferred_food_tags", [])
-        if isinstance(inferred_tags, list):
-            tags.extend(str(tag).strip() for tag in inferred_tags if str(tag).strip())
 
-    if not tags and not actions:
+        weight = _resolve_interaction_weight(record)
+        if weight <= 0.0:
+            continue
+
+        business_id = str(record.get("business_id") or "").strip()
+        embedding = embedding_by_business_id.get(business_id)
+        if not embedding:
+            continue
+
+        if weighted_sum is None:
+            weighted_sum = [0.0] * len(embedding)
+
+        for index_value, component in enumerate(embedding):
+            weighted_sum[index_value] += weight * component
+        total_weight += weight
+
+    if weighted_sum is None or total_weight <= 0.0:
         return None
 
-    try:
-        return embed_user(" ".join(tags + actions))
-    except Exception:
-        return None
+    averaged = [value / total_weight for value in weighted_sum]
+    return _normalize_vector(averaged)
 
 
 def _get_index():
@@ -413,8 +650,15 @@ def search_restaurants(
 
     query_text = (query or "").strip()
 
-    # Step 1: load existing user embedding if available
-    user_vector = _build_user_embedding_if_available(user_id)
+    # Step 1: build profile and interaction vectors, then combine into one user vector
+    profile_vector = _build_user_embedding_if_available(user_id)
+    interaction_vector = _build_interaction_vector(user_id)
+    user_vector = _blend_vectors(
+        profile_vector,
+        interaction_vector,
+        left_weight=PROFILE_VECTOR_WEIGHT,
+        right_weight=INTERACTION_VECTOR_WEIGHT,
+    )
     adapted_filters = _adapt_filters(filters)
     user_origin_provided = (
         adapted_filters.get("origin_lat") is not None
@@ -427,6 +671,10 @@ def search_restaurants(
     use_recommendation_mode = user_vector_only or not query_text
     parsed_query = None
     embedding_query_text = query_text
+    explicit_hard_filters, query_hard_filters, soft_preferences = _build_filter_stages(
+        adapted_filters,
+        None,
+    )
 
     if not use_recommendation_mode:
         # Parse structured signals for filtering and ranking
@@ -435,6 +683,10 @@ def search_restaurants(
         embedding_query_text = minimal_clean_query(query_text)
         # Merge structured signals into filters
         adapted_filters = _merge_query_signals(adapted_filters, parsed_query)
+        explicit_hard_filters, query_hard_filters, soft_preferences = _build_filter_stages(
+            adapted_filters,
+            parsed_query,
+        )
 
     has_resolved_origin = (
         adapted_filters.get("origin_lat") is not None
@@ -450,8 +702,10 @@ def search_restaurants(
     if use_recommendation_mode:
         if user_vector is None:
             fallback_restaurants = _get_restaurants()
+            explicit_fallback = _apply_hard_filters(fallback_restaurants, explicit_hard_filters)
+            fallback_pool = explicit_fallback if explicit_fallback else fallback_restaurants
             return _rank_by_location_and_rating(
-                restaurants=fallback_restaurants,
+                restaurants=fallback_pool,
                 filters=adapted_filters,
                 top_k=requested_top_k,
             )
@@ -470,8 +724,13 @@ def search_restaurants(
     origin_lat = _safe_float(adapted_filters.get("origin_lat"), NYU_LAT)
     origin_lon = _safe_float(adapted_filters.get("origin_lon"), NYU_LON)
     candidate_restaurants = _with_distance_km([r for r, _ in candidates], origin_lat, origin_lon)
-    filtered = apply_filters(candidate_restaurants, adapted_filters)
-    filtered = _apply_borough_filter(filtered, adapted_filters.get("borough"))
+    explicit_filtered = _apply_hard_filters(candidate_restaurants, explicit_hard_filters)
+    hard_filtered = _apply_hard_filters(explicit_filtered, query_hard_filters)
+    soft_filtered = _apply_soft_preference_filter(hard_filtered, soft_preferences)
+
+    ranking_pool = soft_filtered
+    if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS:
+        ranking_pool = explicit_filtered if explicit_filtered else candidate_restaurants
 
     # Step 5: Rebuild (restaurant, score) tuples after filtering
     score_map = {
@@ -482,12 +741,15 @@ def search_restaurants(
 
     filtered_with_scores = [
         (restaurant, score_map.get(str(restaurant.get("business_id", "")), 0.0))
-        for restaurant in filtered
+        for restaurant in ranking_pool
     ]
 
     # Step 6: rank candidates
-    user_history = load_user_interactions(user_id) if user_id != "anonymous" else []
-    ranked = rank_candidates(filtered_with_scores, user_history)
+    ranked = rank_candidates(
+        filtered_with_scores,
+        user_price_pref=str(soft_preferences.get("price") or "") or None,
+        soft_preferences=soft_preferences,
+    )
 
     # Step 7: return top-k
     return ranked[:requested_top_k]

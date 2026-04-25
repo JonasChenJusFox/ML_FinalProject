@@ -6,7 +6,7 @@ Responsibilities:
 - Renders the combined profile page
 - Displays database-backed wrapped summary at the top
 - Displays saved restaurants below the summary
-- Provides a button to enter the recommendation flow
+- Provides access to the questionnaire/profile form
 - Connects profile actions to frontend state and login flow
 """
 
@@ -15,9 +15,12 @@ from __future__ import annotations
 import streamlit as st
 
 from frontend.adapters import normalize_results
-from frontend.auth import open_login_modal
+from frontend.auth import open_login_modal, open_signup_modal
+from frontend.components.onboarding_form import render_onboarding_form
 from frontend.components.empty_state import render_empty_state
 from frontend.components.restaurant_card import render_restaurant_card
+from frontend.user_profile_state import get_questionnaire_answers
+from integration.interaction_repo import get_user_interaction_records
 from integration.wrapped_repo import build_wrapped_stats
 
 
@@ -31,9 +34,15 @@ def render_profile(restaurants: list[dict]) -> None:
     st.markdown("### Profile")
 
     if not st.session_state.get("is_logged_in", False):
-        st.info("Please log in to view your profile and saved restaurants.")
-        if st.button("Log in", key="profile_login_button"):
+        st.info("Log in or create an account to complete your questionnaire and keep private saved, liked, and reviewed places.")
+        gate_cols = st.columns(2, gap="small")
+        if gate_cols[0].button("Log in", key="profile_login_button", use_container_width=True):
+            st.session_state.post_login_redirect = "profile"
             open_login_modal()
+            st.rerun()
+        if gate_cols[1].button("Create account", key="profile_signup_button", use_container_width=True):
+            st.session_state.post_login_redirect = "profile"
+            open_signup_modal()
             st.rerun()
         return
 
@@ -41,8 +50,9 @@ def render_profile(restaurants: list[dict]) -> None:
     username = current_user.get("username", "")
 
     if not username:
-        st.info("Please log in to view your profile and saved restaurants.")
+        st.info("Please log in to view your profile.")
         if st.button("Log in", key="profile_login_button_fallback"):
+            st.session_state.post_login_redirect = "profile"
             open_login_modal()
             st.rerun()
         return
@@ -55,12 +65,16 @@ def render_profile(restaurants: list[dict]) -> None:
         if item.get("business_id")
     }
 
-    saved_ids = st.session_state.get("saved_ids", []) or []
-    saved_restaurants = [restaurant_index[item_id] for item_id in saved_ids if item_id in restaurant_index]
+    interaction_records = get_user_interaction_records(username)
+    interaction_restaurants = [
+        restaurant_index[record["business_id"]]
+        for record in interaction_records
+        if record.get("business_id") in restaurant_index
+    ]
 
     wrapped = build_wrapped_stats(username, normalized)
 
-    top_row = st.columns([2.2, 1], gap="large")
+    top_row = st.columns([2.1, 1.2], gap="large")
 
     with top_row[0]:
         st.markdown(
@@ -115,30 +129,44 @@ def render_profile(restaurants: list[dict]) -> None:
 
     with top_row[1]:
         st.markdown(
-            "<div class='nb-section-title'>Recommendation</div>",
+            "<div class='nb-section-title'>Profile setup</div>",
             unsafe_allow_html=True,
         )
 
-        if st.button(
-            "Need recommendation",
-            key="profile_need_recommendation",
-            use_container_width=True,
-        ):
-            st.session_state.page = "Recommendation"
+        onboarding_completed = st.session_state.get("onboarding_completed", False)
+        questionnaire_label = "Edit questionnaire" if onboarding_completed else "Complete questionnaire"
+        if st.button(questionnaire_label, key="profile_edit_questionnaire", use_container_width=True):
+            st.session_state.editing_questionnaire = True
             st.rerun()
 
+        current_answers = get_questionnaire_answers()
+        cuisines_preview = ", ".join(current_answers.get("top_cuisines", [])[:3]) or "Not set yet"
+        meals_preview = ", ".join(current_answers.get("typical_meals", [])[:3]) or "Not set yet"
+        st.caption(f"Top cuisines: {cuisines_preview}")
+        st.caption(f"Typical meals: {meals_preview}")
+
+    if st.session_state.get("editing_questionnaire", False) or not st.session_state.get("onboarding_completed", False):
+        st.markdown(
+            "<div class='nb-section-title'>Questionnaire</div>",
+            unsafe_allow_html=True,
+        )
+        if not st.session_state.get("onboarding_completed", False):
+            st.caption("Tell us a bit about your taste so Home and Discover can personalize results.")
+        render_onboarding_form()
+        st.divider()
+
     st.markdown(
-        "<div class='nb-section-title'>Saved restaurants</div>",
+        "<div class='nb-section-title'>Your interactions</div>",
         unsafe_allow_html=True,
     )
-    st.caption("Use Focus map to jump to Discover and move that restaurant to the top.")
+    st.caption("Saved, liked, and reviewed restaurants appear here with your private notes.")
 
-    if not saved_restaurants:
+    if not interaction_restaurants:
         render_empty_state(
-            "Nothing saved yet",
-            "Save a few restaurants from Discover and they will appear here.",
+            "No interactions yet",
+            "Save, like, or review a few restaurants from Discover and they will appear here.",
         )
         return
 
-    for idx, item in enumerate(saved_restaurants):
+    for idx, item in enumerate(interaction_restaurants):
         render_restaurant_card(item, key_prefix=f"profile_saved_{idx}")

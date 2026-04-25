@@ -293,5 +293,5 @@ def render_onboarding_form() -> None:
             save_questionnaire_answers(payload)
             st.success("Profile saved.")
             st.session_state.editing_questionnaire = False
-            st.session_state.page = "Recommendation"
+            st.session_state.page = "Profile"
             st.rerun()

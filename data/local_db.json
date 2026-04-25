@@ -1,0 +1,79 @@
+{
+  "saved_restaurants": [
+    {
+      "username": "interaction_demo_user",
+      "business_id": "-yyRWJT4Nt1hGI6XeZltQQ",
+      "saved_at": "2026-04-24T23:41:17.174059"
+    },
+    {
+      "username": "interaction_demo_user",
+      "business_id": "0O3XGwDquasexMWulz4GqQ",
+      "saved_at": "2026-04-24T23:41:17.175190"
+    }
+  ],
+  "user_interactions": [
+    {
+      "username": "interaction_demo_user",
+      "business_id": "-yyRWJT4Nt1hGI6XeZltQQ",
+      "interaction_type": "save",
+      "user_id": "interaction_demo_user",
+      "review_signal": null,
+      "note": "",
+      "timestamp": "2026-04-24T23:41:17.174686"
+    },
+    {
+      "username": "interaction_demo_user",
+      "business_id": "0O3XGwDquasexMWulz4GqQ",
+      "interaction_type": "save",
+      "user_id": "interaction_demo_user",
+      "review_signal": null,
+      "note": "",
+      "timestamp": "2026-04-24T23:41:17.175441"
+    },
+    {
+      "username": "interaction_demo_user",
+      "business_id": "0O3XGwDquasexMWulz4GqQ",
+      "interaction_type": "like",
+      "user_id": "interaction_demo_user",
+      "review_signal": null,
+      "note": "",
+      "timestamp": "2026-04-24T23:41:17.175878"
+    },
+    {
+      "username": "interaction_demo_user",
+      "business_id": "1aD88qNRb08LGBkl84GQTA",
+      "interaction_type": "like",
+      "user_id": "interaction_demo_user",
+      "review_signal": null,
+      "note": "",
+      "timestamp": "2026-04-24T23:41:17.176320"
+    },
+    {
+      "username": "interaction_demo_user",
+      "business_id": "-yyRWJT4Nt1hGI6XeZltQQ",
+      "interaction_type": "review",
+      "user_id": "interaction_demo_user",
+      "review_signal": "love",
+      "note": "great croissant, revisit soon",
+      "timestamp": "2026-04-24T23:41:17.176569"
+    },
+    {
+      "username": "interaction_demo_user",
+      "business_id": "0O3XGwDquasexMWulz4GqQ",
+      "interaction_type": "review",
+      "user_id": "interaction_demo_user",
+      "review_signal": "neutral",
+      "note": "solid coffee, maybe later",
+      "timestamp": "2026-04-24T23:41:17.176801"
+    },
+    {
+      "username": "interaction_demo_user",
+      "business_id": "1aD88qNRb08LGBkl84GQTA",
+      "interaction_type": "review",
+      "user_id": "interaction_demo_user",
+      "review_signal": "hate",
+      "note": "too noisy for studying",
+      "timestamp": "2026-04-24T23:41:17.177050"
+    }
+  ]
+}

@@ -13,16 +13,16 @@ must use the same model to ensure embedding spaces are compatible.
 Default model: sentence-transformers/multi-qa-mpnet-base-cos-v1.
 """
 
-from sentence_transformers import SentenceTransformer
+from typing import Any
 
 
 # NOTE: This cache assumes a single model is used across the entire pipeline.
 # Calling get_embedding_model() with a different model_name after the first
 # call will silently return the originally loaded model.
-_model_cache = None
+_model_cache: Any = None
 
 
-def get_embedding_model(model_name: str = "sentence-transformers/multi-qa-mpnet-base-cos-v1") -> SentenceTransformer:
+def get_embedding_model(model_name: str = "sentence-transformers/multi-qa-mpnet-base-cos-v1") -> Any:
     """Load and cache the SentenceTransformer embedding model.
 
     Args:
@@ -34,6 +34,8 @@ def get_embedding_model(model_name: str = "sentence-transformers/multi-qa-mpnet-
     """
     global _model_cache
     if _model_cache is None:
+        from sentence_transformers import SentenceTransformer
+
         _model_cache = SentenceTransformer(model_name)
     return _model_cache
 

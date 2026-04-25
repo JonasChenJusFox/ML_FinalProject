@@ -35,6 +35,13 @@ DEFAULT_QUESTIONNAIRE = {
 }
 
 
+def _default_questionnaire() -> dict:
+    return {
+        key: list(value) if isinstance(value, list) else value
+        for key, value in DEFAULT_QUESTIONNAIRE.items()
+    }
+
+
 def _clean_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -86,16 +93,39 @@ def _adapt_to_raw_answers(payload: dict | None) -> dict:
 
 def init_user_profile_state() -> None:
     if "questionnaire_answers" not in st.session_state:
-        st.session_state.questionnaire_answers = DEFAULT_QUESTIONNAIRE.copy()
+        st.session_state.questionnaire_answers = _default_questionnaire()
 
     if "onboarding_completed" not in st.session_state:
         st.session_state.onboarding_completed = False
 
+    if "editing_questionnaire" not in st.session_state:
+        st.session_state.editing_questionnaire = False
+
+    if "questionnaire_loaded_for_user" not in st.session_state:
+        st.session_state.questionnaire_loaded_for_user = None
+
     current_user = st.session_state.get("current_user")
     if not current_user:
+        st.session_state.questionnaire_answers = _default_questionnaire()
+        st.session_state.onboarding_completed = False
+        st.session_state.editing_questionnaire = False
+        st.session_state.questionnaire_loaded_for_user = None
         return
 
     username = current_user.get("username")
+    if not username:
+        st.session_state.questionnaire_answers = _default_questionnaire()
+        st.session_state.onboarding_completed = False
+        st.session_state.editing_questionnaire = False
+        st.session_state.questionnaire_loaded_for_user = None
+        return
+
+    if st.session_state.get("questionnaire_loaded_for_user") != username:
+        st.session_state.questionnaire_answers = _default_questionnaire()
+        st.session_state.onboarding_completed = False
+        st.session_state.editing_questionnaire = False
+        st.session_state.questionnaire_loaded_for_user = username
+
     profile = get_user_profile(username)
 
     if profile:
@@ -106,10 +136,13 @@ def init_user_profile_state() -> None:
         )
         st.session_state.questionnaire_answers = _adapt_to_raw_answers(stored_answers)
         st.session_state.onboarding_completed = True
+    else:
+        st.session_state.questionnaire_answers = _default_questionnaire()
+        st.session_state.onboarding_completed = False
 
 
 def get_questionnaire_answers() -> dict:
-    payload = st.session_state.get("questionnaire_answers", DEFAULT_QUESTIONNAIRE.copy())
+    payload = st.session_state.get("questionnaire_answers", _default_questionnaire())
     return _adapt_to_raw_answers(payload)
 
 
@@ -121,3 +154,10 @@ def save_questionnaire_answers(payload: dict) -> None:
     current_user = st.session_state.get("current_user")
     if current_user:
         save_user_profile(current_user["username"], adapted_payload)
+
+
+def reset_questionnaire_state() -> None:
+    st.session_state.questionnaire_answers = _default_questionnaire()
+    st.session_state.onboarding_completed = False
+    st.session_state.editing_questionnaire = False
+    st.session_state.questionnaire_loaded_for_user = None

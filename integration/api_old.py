@@ -410,8 +410,7 @@ def search_restaurants(
     ]
 
     # Step 6: rank candidates
-    user_history = load_user_interactions(user_id) if user_id != "anonymous" else []
-    ranked = rank_candidates(filtered_with_scores, user_history)
+    ranked = rank_candidates(filtered_with_scores)
 
     # Step 7: return top-k
     return ranked[:requested_top_k]

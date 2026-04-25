@@ -94,17 +94,25 @@ def load_user_interactions(user_id: str) -> list[dict]:
     Expected output schema per record:
         {
             "user_id": str,
+            "username": str,
             "business_id": str,
-            "interaction_type": str,   # "viewed" | "clicked" | "saved" | "liked"
-            "interaction_value": float,
-            "timestamp": str,          # ISO 8601
-            "day_of_week": str,
-            "time_bucket": str,        # "morning" | "afternoon" | "evening" | "night"
-            "inferred_food_tags": list[str],
+            "interaction_type": str,   # "save" | "like" | "review"
+            "review_signal": str | None,
+            "note": str,
+            "timestamp": str,
         }
     """
     if not user_id:
         return []
+
+    try:
+        from integration.interaction_repo import get_user_interactions
+
+        mongo_records = get_user_interactions(str(user_id))
+        if mongo_records:
+            return mongo_records
+    except Exception:
+        pass
 
     if not USER_INTERACTIONS_PATH.exists():
         return []
@@ -118,11 +126,46 @@ def load_user_interactions(user_id: str) -> list[dict]:
     if not isinstance(payload, list):
         return []
 
-    return [
-        record
-        for record in payload
-        if isinstance(record, dict) and str(record.get("user_id", "")) == str(user_id)
-    ]
+    normalized_records: list[dict] = []
+    normalized_user_id = str(user_id).strip().lower()
+
+    for record in payload:
+        if not isinstance(record, dict):
+            continue
+
+        record_user_id = str(record.get("user_id", "")).strip().lower()
+        if record_user_id != normalized_user_id:
+            continue
+
+        interaction_type = str(record.get("interaction_type", "")).strip().lower()
+        interaction_aliases = {
+            "saved": "save",
+            "save": "save",
+            "liked": "like",
+            "like": "like",
+            "review": "review",
+        }
+        normalized_type = interaction_aliases.get(interaction_type)
+        if normalized_type is None:
+            continue
+
+        review_signal = str(record.get("review_signal", "")).strip().lower() or None
+        if normalized_type == "review" and review_signal not in {"love", "neutral", "hate"}:
+            continue
+
+        normalized_records.append(
+            {
+                "user_id": normalized_user_id,
+                "username": normalized_user_id,
+                "business_id": str(record.get("business_id", "")).strip(),
+                "interaction_type": normalized_type,
+                "review_signal": review_signal,
+                "note": str(record.get("note", "")).strip(),
+                "timestamp": record.get("timestamp", ""),
+            }
+        )
+
+    return [record for record in normalized_records if record.get("business_id")]
 
 
 def load_synthetic_user_profiles() -> list[dict]:

@@ -37,6 +37,22 @@ def _extract_category_strings(restaurant: dict[str, Any]) -> set[str]:
     return extracted
 
 
+def _restaurant_search_text(restaurant: dict[str, Any]) -> str:
+    parts: list[str] = []
+
+    for key in ("name", "borough", "embedding_text", "document"):
+        value = restaurant.get(key)
+        if isinstance(value, str) and value.strip():
+            parts.append(value.strip().lower())
+
+    for list_key in ("categories", "tags", "vibes"):
+        values = restaurant.get(list_key, [])
+        if isinstance(values, list):
+            parts.extend(str(value).strip().lower() for value in values if str(value).strip())
+
+    return " ".join(parts)
+
+
 def _normalize_price_level(value: Any) -> float:
     """Normalize price labels or dollar strings to a comparable level."""
     if value is None:
@@ -239,6 +255,43 @@ def compute_distance_penalty(distance_km: float | None, max_distance_km: float =
     return _distance_score(distance_km, max_distance_km=max_distance_km)
 
 
+def compute_soft_preference_boost(
+    restaurant: dict[str, Any],
+    soft_preferences: dict[str, Any] | None = None,
+) -> float:
+    """Compute a small bounded boost from soft parsed query signals."""
+    if not soft_preferences:
+        return 0.0
+
+    boost = 0.0
+    text = _restaurant_search_text(restaurant)
+
+    soft_price = soft_preferences.get("price")
+    if isinstance(soft_price, str) and soft_price.strip():
+        boost += 0.05 * compute_price_match(soft_price, restaurant.get("price"))
+
+    soft_borough = soft_preferences.get("borough")
+    if isinstance(soft_borough, str) and soft_borough and soft_borough != "All":
+        if str(restaurant.get("borough") or "").strip().lower() == soft_borough.strip().lower():
+            boost += 0.06
+
+    soft_location = soft_preferences.get("location")
+    if isinstance(soft_location, str) and soft_location.strip():
+        if soft_location.strip().lower() in text:
+            boost += 0.04
+
+    for key in ("meal_context", "occasion_vibe", "cuisines"):
+        values = soft_preferences.get(key, [])
+        if not isinstance(values, list):
+            continue
+        for value in values:
+            normalized = str(value).strip().lower().replace("_", " ")
+            if normalized and normalized in text:
+                boost += 0.025
+
+    return min(0.16, boost)
+
+
 def _merge_weights(weights: dict[str, float] | None) -> dict[str, float]:
     merged_weights = dict(DEFAULT_RANKING_WEIGHTS)
     if weights:
@@ -396,10 +449,10 @@ def rank_candidates_from_fused_vector(
 
 def rank_candidates(
     candidates: list[tuple[dict[str, Any], float]],
-    user_history: list[dict[str, Any]] | None = None,
+    user_price_pref: str | None = None,
+    soft_preferences: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Compatibility wrapper for the older pipeline that already has similarity scores."""
-    del user_history
 
     ranked_results: list[dict[str, Any]] = []
     for restaurant, similarity_score in candidates:
@@ -408,11 +461,12 @@ def rank_candidates(
 
         rating_score = compute_rating_score(restaurant.get("rating"))
         popularity_score = compute_popularity_score(restaurant.get("review_count"))
-        price_match = compute_price_match(None, restaurant.get("price"))
+        soft_boost = compute_soft_preference_boost(restaurant, soft_preferences)
+        price_match = compute_price_match(user_price_pref, restaurant.get("price"))
         distance_component = compute_distance_penalty(restaurant.get("distance_km"))
 
         final_score, breakdown = compute_final_score(
-            semantic_score=similarity_score,
+            semantic_score=similarity_score + soft_boost,
             rating_score=rating_score,
             popularity_score=popularity_score,
             price_match_score=price_match,
@@ -420,9 +474,10 @@ def rank_candidates(
         )
 
         result = dict(restaurant)
-        result["semantic_score"] = similarity_score
+        result["semantic_score"] = similarity_score + soft_boost
         result["final_score"] = final_score
         result["score_breakdown"] = breakdown
+        result["soft_preference_boost"] = soft_boost
         ranked_results.append(result)
 
     ranked_results.sort(key=lambda item: item.get("final_score", 0.0), reverse=True)

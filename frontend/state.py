@@ -57,6 +57,12 @@ def init_state(preview_restaurants: list[dict]) -> None:
     if "saved_ids" not in st.session_state:
         st.session_state.saved_ids = []
 
+    if "liked_ids" not in st.session_state:
+        st.session_state.liked_ids = []
+
+    if "interaction_map" not in st.session_state:
+        st.session_state.interaction_map = {}
+
     if "viewed_ids" not in st.session_state:
         st.session_state.viewed_ids = []
 

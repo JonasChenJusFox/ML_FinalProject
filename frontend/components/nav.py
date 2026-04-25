@@ -5,7 +5,7 @@ Owner: Jonas Chen
 Responsibilities:
 - Renders the standard top navigation bar for the NearBite app
 - Displays the NearBite logo and main navigation controls
-- Supports switching between Home, Discover, Profile, and Recommendation
+- Supports switching between Home, Discover, and Profile
 - Provides login and logout actions inside a utility hamburger menu
 - Uses a normal top layout without sticky or fixed behavior
 """
@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import streamlit as st
 
-from frontend.auth import logout, open_login_modal
+from frontend.auth import logout, open_login_modal, open_signup_modal
 from frontend.theme import asset_to_data_uri
 
-PAGES = ["Home", "Discover", "Profile", "Recommendation"]
+PAGES = ["Home", "Discover", "Profile"]
 
 
 def _init_nav_state() -> None:
@@ -103,8 +103,13 @@ def render_nav() -> str:
                 unsafe_allow_html=True,
             )
 
-            if st.button("Log in", key="menu_login", use_container_width=True):
+            auth_cols = st.columns(2, gap="small")
+            if auth_cols[0].button("Log in", key="menu_login", use_container_width=True):
                 open_login_modal()
+                st.session_state.show_nav_menu = False
+                st.rerun()
+            if auth_cols[1].button("Sign up", key="menu_signup", use_container_width=True):
+                open_signup_modal()
                 st.session_state.show_nav_menu = False
                 st.rerun()
 

@@ -3,58 +3,44 @@ integration/wrapped_repo.py
 Owner: Jonas Chen
 
 Responsibilities:
-- Logs user interaction events for wrapped-style analytics
-- Loads interaction history from MongoDB
+- Loads normalized interaction history from MongoDB
 - Aggregates wrapped summary signals from saved and interaction history
 - Provides database-backed wrapped stats for profile and recommendation flows
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from integration.interaction_repo import (
+    get_saved_restaurant_ids,
+    get_user_interactions,
+    upsert_user_interaction,
+)
 
-from integration.db import get_collection
 
-interaction_collection = get_collection("user_interactions")
-saved_collection = get_collection("saved_restaurants")
-
-
-def log_user_interaction(username: str, business_id: str, action: str) -> None:
+def log_user_interaction(
+    username: str,
+    business_id: str,
+    action: str,
+    review_signal: str | None = None,
+    note: str | None = None,
+) -> None:
     """
-    Store a user interaction event in MongoDB.
+    Compatibility helper that only persists supported personalization actions.
     """
-    interaction_collection.insert_one(
-        {
-            "username": username,
-            "business_id": business_id,
-            "action": action,
-            "created_at": datetime.utcnow(),
-        }
+    if action not in {"save", "like", "review"}:
+        return
+    upsert_user_interaction(
+        username=username,
+        business_id=business_id,
+        interaction_type=action,
+        review_signal=review_signal,
+        note=note,
     )
-
-
-def get_user_interactions(username: str) -> list[dict]:
-    """
-    Return all interaction documents for a user, newest first.
-    """
-    cursor = interaction_collection.find({"username": username}).sort("created_at", -1)
-    return list(cursor)
-
-
-def get_saved_business_ids(username: str) -> list[str]:
-    """
-    Return saved restaurant ids for a user from MongoDB.
-    """
-    cursor = saved_collection.find(
-        {"username": username},
-        {"business_id": 1, "_id": 0},
-    )
-    return [doc["business_id"] for doc in cursor if "business_id" in doc]
 
 
 def build_wrapped_stats(username: str, restaurants: list[dict]) -> dict:
     """
-    Build wrapped-style summary stats using saved restaurants and interaction history.
+    Build wrapped-style summary stats using normalized interaction history.
     """
     restaurant_index = {
         item.get("business_id"): item
@@ -62,7 +48,7 @@ def build_wrapped_stats(username: str, restaurants: list[dict]) -> dict:
         if item.get("business_id")
     }
 
-    saved_ids = get_saved_business_ids(username)
+    saved_ids = get_saved_restaurant_ids(username)
     interactions = get_user_interactions(username)
 
     cuisine_counts: dict[str, int] = {}
@@ -86,7 +72,7 @@ def build_wrapped_stats(username: str, restaurants: list[dict]) -> dict:
             vibe_counts[vibe] = vibe_counts.get(vibe, 0) + 1
 
     for interaction in interactions:
-        action = interaction.get("action")
+        action = interaction.get("interaction_type")
         if action:
             action_counts[action] = action_counts.get(action, 0) + 1
 

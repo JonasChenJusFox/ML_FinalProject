@@ -163,6 +163,7 @@ def _current_signature() -> tuple:
         float(st.session_state.get("discover_min_rating", 0.0) or 0.0),
         st.session_state.get("discover_radius_minutes"),
         bool(st.session_state.get("use_my_location", False)),
+        clean_text(st.session_state.get("selected_area_label", "")),
         clean_text(st.session_state.get("selected_zipcode", "")),
         st.session_state.get("user_lat"),
         st.session_state.get("user_lon"),

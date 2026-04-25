@@ -7,6 +7,7 @@ Responsibilities:
 - Normalizes fields such as address, price, image, and review snippet
 - Computes travel time from the current origin
 - Provides helper functions for wrapped statistics and frontend filters
+- Restores cached geolocation context when the UI should return to the real current location
 - Keeps UI rendering logic separate from raw dataset structure
 """
 
@@ -62,10 +63,15 @@ def get_current_origin() -> dict:
             nearest_area = find_nearest_search_area(latitude, longitude)
             nearest_street = _find_nearest_street_label(latitude, longitude)
             selected_zipcode = clean_text(st.session_state.get("selected_zipcode", ""))
+            selected_area_label = clean_text(st.session_state.get("selected_area_label", ""))
             if selected_zipcode:
                 label = f"ZIP {selected_zipcode}"
                 travel_label = nearest_area["name"] if nearest_area else f"ZIP {selected_zipcode}"
                 area_label = nearest_area["name"] if nearest_area else ""
+            elif selected_area_label:
+                label = selected_area_label
+                travel_label = selected_area_label
+                area_label = selected_area_label
             else:
                 label = nearest_street or (nearest_area["name"] if nearest_area else f"{latitude:.4f}, {longitude:.4f}")
                 travel_label = nearest_street or (nearest_area["name"] if nearest_area else "Current location")
@@ -100,11 +106,18 @@ def get_current_origin_kwargs() -> dict:
     }
 
 
-def set_user_origin(lat: float, lon: float, *, zipcode: str | None = None) -> None:
+def set_user_origin(
+    lat: float,
+    lon: float,
+    *,
+    zipcode: str | None = None,
+    area_label: str | None = None,
+) -> None:
     st.session_state.use_my_location = True
     st.session_state.user_lat = float(lat)
     st.session_state.user_lon = float(lon)
     st.session_state.selected_zipcode = clean_text(zipcode) if zipcode else ""
+    st.session_state.selected_area_label = clean_text(area_label) if area_label else ""
     st.session_state.origin_label_cache_key = None
 
 
@@ -113,10 +126,31 @@ def clear_user_origin() -> None:
     st.session_state.user_lat = None
     st.session_state.user_lon = None
     st.session_state.selected_zipcode = ""
+    st.session_state.selected_area_label = ""
     st.session_state.origin_label = ""
     st.session_state.origin_travel_label = ""
     st.session_state.origin_area_label = ""
     st.session_state.origin_label_cache_key = None
+
+
+def restore_cached_current_location() -> None:
+    geo_value = st.session_state.get("location_geo_value", {}) or {}
+    latitude = geo_value.get("latitude")
+    longitude = geo_value.get("longitude")
+
+    try:
+        if latitude is not None and longitude is not None:
+            set_user_origin(float(latitude), float(longitude))
+            st.session_state.location_inputs_reset_pending = True
+            st.session_state.location_error_message = ""
+            return
+    except (TypeError, ValueError):
+        pass
+
+    clear_user_origin()
+    st.session_state.discover_auto_location_requested = False
+    st.session_state.location_inputs_reset_pending = True
+    st.session_state.location_error_message = ""
 
 
 

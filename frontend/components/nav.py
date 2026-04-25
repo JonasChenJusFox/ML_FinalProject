@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from frontend.adapters import restore_cached_current_location
 from frontend.auth import open_account_security_modal
 from frontend.theme import asset_to_data_uri
 
@@ -57,6 +58,8 @@ def render_nav() -> str:
                 type=button_type,
             ):
                 st.session_state.discover_filters_open = False
+                if current_page != "Discover" and page == "Discover":
+                    restore_cached_current_location()
                 st.session_state.page = page
                 st.rerun()
 

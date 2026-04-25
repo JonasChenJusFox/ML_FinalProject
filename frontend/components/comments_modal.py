@@ -229,27 +229,28 @@ def render_comments_modal() -> None:
         close_comments_modal()
         return
 
-    @st.dialog("Comments")
-    def _dialog() -> None:
-        restaurant = st.session_state.get("comments_modal_restaurant", {}) or {}
-        name = clean_text(restaurant.get("name", "Restaurant")) or "Restaurant"
-        business_id = clean_text(restaurant.get("business_id", ""))
-        source_reviews = restaurant.get("google_reviews", [])
-
-        st.subheader(name)
-
-        if business_id:
-            st.caption("Reviews are private. Only your own review is visible to you.")
-            _render_review_form(restaurant)
-            if source_reviews:
-                st.divider()
-                _render_source_reviews(source_reviews)
-        else:
-            st.write("No review details are available for this restaurant.")
-
-        if st.button("Close", key="comments_modal_close", use_container_width=True):
-            close_comments_modal()
-            st.rerun()
-
-    _dialog()
+    _render_comments_dialog()
     st.session_state.show_comments_modal = False
+
+
+@st.dialog("Comments")
+def _render_comments_dialog() -> None:
+    restaurant = st.session_state.get("comments_modal_restaurant", {}) or {}
+    name = clean_text(restaurant.get("name", "Restaurant")) or "Restaurant"
+    business_id = clean_text(restaurant.get("business_id", ""))
+    source_reviews = restaurant.get("google_reviews", [])
+
+    st.subheader(name)
+
+    if business_id:
+        st.caption("Reviews are private. Only your own review is visible to you.")
+        _render_review_form(restaurant)
+        if source_reviews:
+            st.divider()
+            _render_source_reviews(source_reviews)
+    else:
+        st.write("No review details are available for this restaurant.")
+
+    if st.button("Close", key="comments_modal_close", use_container_width=True):
+        close_comments_modal()
+        st.rerun()

@@ -12,6 +12,16 @@ from frontend.auth import close_questionnaire_modal
 from frontend.components.onboarding_form import render_onboarding_form
 
 
+@st.dialog("Questionnaire")
+def _render_questionnaire_dialog() -> None:
+    st.caption("Help us to make better recommendations for you.")
+    render_onboarding_form(show_header=False)
+
+    if st.button("Close", key="questionnaire_modal_close", use_container_width=True):
+        close_questionnaire_modal()
+        st.rerun()
+
+
 def render_questionnaire_modal() -> None:
     if not st.session_state.get("show_questionnaire_modal", False):
         return
@@ -32,14 +42,5 @@ def render_questionnaire_modal() -> None:
         close_questionnaire_modal()
         return
 
-    @st.dialog("Questionnaire")
-    def _dialog() -> None:
-        st.caption("Help us to make better recommendations for you.")
-        render_onboarding_form(show_header=False)
-
-        if st.button("Close", key="questionnaire_modal_close", use_container_width=True):
-            close_questionnaire_modal()
-            st.rerun()
-
-    _dialog()
+    _render_questionnaire_dialog()
     st.session_state.show_questionnaire_modal = False

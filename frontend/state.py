@@ -66,6 +66,9 @@ def init_state(preview_restaurants: list[dict]) -> None:
     if "selected_zipcode" not in st.session_state:
         st.session_state.selected_zipcode = ""
 
+    if "selected_area_label" not in st.session_state:
+        st.session_state.selected_area_label = ""
+
     if "discover_auto_location_requested" not in st.session_state:
         st.session_state.discover_auto_location_requested = False
 

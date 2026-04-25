@@ -4,7 +4,7 @@ Owner: Jonas Chen
 
 Responsibilities:
 - Renders the Discover-page current-origin summary below the search bar
-- Renders ZIP selection controls inside the filter panel
+- Renders neighborhood/area and ZIP selection controls inside the filter panel
 - Supports browser geolocation without exposing the raw GPS icon widget
 - Applies frontend-only origin changes for travel-time display and map centering
 """
@@ -25,12 +25,15 @@ from frontend.adapters import (
     set_user_origin,
 )
 from frontend.location_utils import (
+    resolve_area_location,
     get_supported_zipcode_options,
     resolve_zipcode_location,
 )
 
 
 def _ensure_location_state() -> None:
+    if "location_area_input" not in st.session_state:
+        st.session_state.location_area_input = ""
     if "location_zipcode_input" not in st.session_state:
         st.session_state.location_zipcode_input = ""
     if "location_geo_value" not in st.session_state:
@@ -43,6 +46,7 @@ def _ensure_location_state() -> None:
         st.session_state.location_inputs_reset_pending = False
 
     if st.session_state.get("location_inputs_reset_pending", False):
+        st.session_state.location_area_input = ""
         st.session_state.location_zipcode_input = ""
         st.session_state.location_error_message = ""
         st.session_state.location_inputs_reset_pending = False
@@ -170,13 +174,26 @@ def _process_geolocation_request() -> None:
 
 def apply_location_draft(restaurants: list[dict[str, Any]]) -> tuple[bool, str | None]:
     _ensure_location_state()
+    raw_area = str(st.session_state.get("location_area_input", "")).strip()
     raw_zipcode = str(st.session_state.get("location_zipcode_input", "")).strip()
     st.session_state.location_error_message = ""
 
-    if not raw_zipcode:
+    if not raw_area and not raw_zipcode:
         return True, None
 
     location = None
+    if raw_area:
+        location = resolve_area_location(raw_area)
+        if location:
+            set_user_origin(
+                float(location["lat"]),
+                float(location["lon"]),
+                area_label=str(location.get("area_label", "")).strip() or str(location.get("label", "")).strip(),
+            )
+            st.session_state.location_geo_active_request = ""
+            st.session_state.location_geo_request_pending = False
+            return True, None
+
     zipcode_location = resolve_zipcode_location(raw_zipcode)
     if zipcode_location:
         location = {
@@ -187,7 +204,7 @@ def apply_location_draft(restaurants: list[dict[str, Any]]) -> tuple[bool, str |
         }
 
     if not location:
-        message = "We could not match that ZIP code yet. Try a valid NYC ZIP code."
+        message = "We could not match that neighborhood, area, or ZIP yet."
         st.session_state.location_error_message = message
         return False, message
 
@@ -257,6 +274,12 @@ def render_location_controls(restaurants: list[dict[str, Any]]) -> None:
     current_zipcode = str(st.session_state.get("location_zipcode_input", "") or "")
     if current_zipcode not in zipcode_options:
         st.session_state.location_zipcode_input = ""
+
+    st.text_input(
+        "Neighborhood or area",
+        key="location_area_input",
+        placeholder="LIC, Bushwick, Washington Square, NYU...",
+    )
 
     st.selectbox(
         "ZIP code",

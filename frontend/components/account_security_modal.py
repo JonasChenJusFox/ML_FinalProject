@@ -16,6 +16,15 @@ from frontend.auth import close_account_security_modal
 from frontend.components.account_security_menu import render_account_security_menu
 
 
+@st.dialog("Account")
+def _render_account_security_dialog() -> None:
+    render_account_security_menu()
+
+    if st.button("Close", key="account_security_modal_close", use_container_width=True):
+        close_account_security_modal()
+        st.rerun()
+
+
 def render_account_security_modal() -> None:
     if not st.session_state.get("show_account_security_modal", False):
         return
@@ -31,13 +40,5 @@ def render_account_security_modal() -> None:
         close_account_security_modal()
         return
 
-    @st.dialog("Account")
-    def _dialog() -> None:
-        render_account_security_menu()
-
-        if st.button("Close", key="account_security_modal_close", use_container_width=True):
-            close_account_security_modal()
-            st.rerun()
-
-    _dialog()
+    _render_account_security_dialog()
     st.session_state.show_account_security_modal = False

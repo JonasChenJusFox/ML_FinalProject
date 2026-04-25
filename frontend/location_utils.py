@@ -4,7 +4,7 @@ Owner: Jonas Chen
 
 Responsibilities:
 - Normalizes borough and area labels for frontend display and filtering
-- Provides lightweight NYC area lookup for current-origin labeling
+- Provides lightweight NYC area and ZIP lookup for current-origin labeling
 - Keeps UI-facing location helpers separate from backend search code
 """
 
@@ -19,6 +19,9 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 NEIGHBORHOOD_BOROUGH_PATH = REPO_ROOT / "config" / "neighborhood_to_borough_nyc.json"
+LOCATION_KEYWORD_MAP_PATH = REPO_ROOT / "data" / "nyc_location_keyword_map.json"
+NEIGHBORHOOD_CENTROIDS_PATH = REPO_ROOT / "data" / "nyc_neighborhood_centroids.json"
+ZIPCODE_CENTROIDS_PATH = REPO_ROOT / "data" / "nyc_zipcode_centroids.json"
 
 NYU_LAT = 40.7295
 NYU_LON = -73.9965
@@ -38,13 +41,28 @@ try:
 except Exception:
     _NEIGHBORHOOD_TO_BOROUGH = {}
 
+try:
+    _LOCATION_KEYWORD_MAP = json.loads(LOCATION_KEYWORD_MAP_PATH.read_text())
+except Exception:
+    _LOCATION_KEYWORD_MAP = {}
+
+try:
+    _NEIGHBORHOOD_CENTROIDS = json.loads(NEIGHBORHOOD_CENTROIDS_PATH.read_text())
+except Exception:
+    _NEIGHBORHOOD_CENTROIDS = {}
+
+try:
+    _ZIPCODE_CENTROIDS = json.loads(ZIPCODE_CENTROIDS_PATH.read_text())
+except Exception:
+    _ZIPCODE_CENTROIDS = {}
+
 _BOROUGH_NAMES = set(_BOROUGH_ALIASES.values())
 _SEARCH_TEXT_RE = re.compile(r"[^a-z0-9]+")
 _AREA_ALIASES = {
     "long island city": "Long Island City",
 }
 
-SEARCH_AREAS: list[dict[str, Any]] = [
+_CURATED_SEARCH_AREAS: list[dict[str, Any]] = [
     {
         "name": "Washington Square",
         "aliases": [
@@ -188,73 +206,72 @@ SEARCH_AREAS: list[dict[str, Any]] = [
     },
 ]
 
-ZIPCODE_LOCATIONS: dict[str, dict[str, Any]] = {
-    "10004": {"label": "Battery Park / Financial District", "lat": 40.7026, "lon": -74.0129},
-    "10005": {"label": "Financial District / Wall Street", "lat": 40.7060, "lon": -74.0088},
-    "10006": {"label": "World Trade Center / Financial District", "lat": 40.7096, "lon": -74.0134},
-    "10007": {"label": "Tribeca / Civic Center", "lat": 40.7130, "lon": -74.0086},
-    "10001": {"label": "Chelsea / Midtown South", "lat": 40.7506, "lon": -73.9972},
-    "10002": {"label": "Lower East Side", "lat": 40.7174, "lon": -73.9890},
-    "10003": {"label": "NYU / East Village", "lat": 40.7318, "lon": -73.9892},
-    "10009": {"label": "Alphabet City / East Village", "lat": 40.7272, "lon": -73.9786},
-    "10010": {"label": "Gramercy / Flatiron", "lat": 40.7385, "lon": -73.9826},
-    "10011": {"label": "Chelsea / West Village", "lat": 40.7420, "lon": -74.0008},
-    "10012": {"label": "SoHo / Greenwich Village", "lat": 40.7253, "lon": -73.9986},
-    "10013": {"label": "SoHo / Chinatown / Tribeca", "lat": 40.7205, "lon": -74.0047},
-    "10014": {"label": "West Village", "lat": 40.7364, "lon": -74.0055},
-    "10016": {"label": "Murray Hill / Kips Bay", "lat": 40.7467, "lon": -73.9785},
-    "10017": {"label": "Midtown East / Grand Central", "lat": 40.7527, "lon": -73.9725},
-    "10018": {"label": "Times Square / Garment District", "lat": 40.7546, "lon": -73.9926},
-    "10019": {"label": "Midtown West", "lat": 40.7656, "lon": -73.9854},
-    "10020": {"label": "Rockefeller Center / Midtown", "lat": 40.7587, "lon": -73.9801},
-    "10021": {"label": "Upper East Side", "lat": 40.7684, "lon": -73.9580},
-    "10022": {"label": "Midtown East", "lat": 40.7589, "lon": -73.9680},
-    "10023": {"label": "Upper West Side / Lincoln Center", "lat": 40.7774, "lon": -73.9829},
-    "10024": {"label": "Upper West Side", "lat": 40.7867, "lon": -73.9760},
-    "10025": {"label": "Morningside Heights", "lat": 40.7980, "lon": -73.9686},
-    "10026": {"label": "Central Harlem", "lat": 40.8017, "lon": -73.9544},
-    "10027": {"label": "Morningside Heights / Harlem", "lat": 40.8116, "lon": -73.9552},
-    "10028": {"label": "Upper East Side", "lat": 40.7764, "lon": -73.9537},
-    "10029": {"label": "East Harlem", "lat": 40.7916, "lon": -73.9444},
-    "10030": {"label": "Harlem", "lat": 40.8185, "lon": -73.9431},
-    "10031": {"label": "Hamilton Heights", "lat": 40.8252, "lon": -73.9493},
-    "10032": {"label": "Washington Heights", "lat": 40.8389, "lon": -73.9422},
-    "10033": {"label": "Washington Heights", "lat": 40.8504, "lon": -73.9357},
-    "10034": {"label": "Inwood / Marble Hill", "lat": 40.8677, "lon": -73.9212},
-    "10035": {"label": "East Harlem", "lat": 40.8011, "lon": -73.9369},
-    "10036": {"label": "Times Square / Hell's Kitchen", "lat": 40.7598, "lon": -73.9918},
-    "10037": {"label": "Harlem", "lat": 40.8135, "lon": -73.9371},
-    "10038": {"label": "Financial District / Seaport", "lat": 40.7099, "lon": -74.0023},
-    "10039": {"label": "Hamilton Heights / Harlem", "lat": 40.8267, "lon": -73.9386},
-    "10040": {"label": "Inwood", "lat": 40.8587, "lon": -73.9287},
-    "10451": {"label": "Bronx", "lat": 40.8172, "lon": -73.9223},
-    "10301": {"label": "Staten Island", "lat": 40.6437, "lon": -74.0736},
-    "11101": {"label": "Long Island City", "lat": 40.7447, "lon": -73.9485},
-    "11102": {"label": "Astoria", "lat": 40.7717, "lon": -73.9277},
-    "11103": {"label": "Astoria", "lat": 40.7621, "lon": -73.9118},
-    "11104": {"label": "Sunnyside", "lat": 40.7449, "lon": -73.9196},
-    "11105": {"label": "Astoria / Ditmars", "lat": 40.7796, "lon": -73.9080},
-    "11106": {"label": "Astoria", "lat": 40.7617, "lon": -73.9295},
-    "11205": {"label": "Fort Greene / Clinton Hill", "lat": 40.6949, "lon": -73.9661},
-    "11206": {"label": "East Williamsburg / Bushwick", "lat": 40.7011, "lon": -73.9427},
-    "11201": {"label": "Downtown Brooklyn", "lat": 40.6943, "lon": -73.9918},
-    "11211": {"label": "Williamsburg", "lat": 40.7143, "lon": -73.9571},
-    "11215": {"label": "Park Slope", "lat": 40.6671, "lon": -73.9852},
-    "11217": {"label": "Prospect Heights", "lat": 40.6819, "lon": -73.9762},
-    "11218": {"label": "Kensington / Windsor Terrace", "lat": 40.6451, "lon": -73.9778},
-    "11221": {"label": "Bed-Stuy / Bushwick", "lat": 40.6915, "lon": -73.9275},
-    "11222": {"label": "Greenpoint", "lat": 40.7280, "lon": -73.9515},
-    "11231": {"label": "Carroll Gardens / Red Hook", "lat": 40.6776, "lon": -74.0014},
-    "11238": {"label": "Clinton Hill / Prospect Heights", "lat": 40.6812, "lon": -73.9647},
-    "11249": {"label": "Williamsburg Waterfront", "lat": 40.7188, "lon": -73.9582},
-    "11354": {"label": "Flushing", "lat": 40.7675, "lon": -73.8271},
-    "11355": {"label": "Flushing", "lat": 40.7492, "lon": -73.8196},
-    "11368": {"label": "Corona", "lat": 40.7498, "lon": -73.8528},
-    "11372": {"label": "Jackson Heights", "lat": 40.7505, "lon": -73.8831},
-    "11373": {"label": "Elmhurst", "lat": 40.7386, "lon": -73.8786},
-    "11375": {"label": "Forest Hills", "lat": 40.7214, "lon": -73.8442},
+_ZIPCODE_LABEL_OVERRIDES = {
+    "10001": "Chelsea / Midtown South",
+    "10002": "Lower East Side",
+    "10003": "NYU / Washington Square / East Village",
+    "10004": "Battery Park / Financial District",
+    "10005": "Financial District / Wall Street",
+    "10006": "World Trade Center / Financial District",
+    "10007": "Tribeca / Civic Center",
+    "10009": "Alphabet City / East Village",
+    "10010": "Gramercy / Flatiron",
+    "10011": "Chelsea / West Village",
+    "10012": "SoHo / Greenwich Village",
+    "10013": "SoHo / Chinatown / Tribeca",
+    "10014": "West Village",
+    "10016": "Murray Hill / Kips Bay",
+    "10017": "Midtown East / Grand Central",
+    "10018": "Times Square / Garment District",
+    "10019": "Midtown West",
+    "10020": "Rockefeller Center / Midtown",
+    "10021": "Upper East Side",
+    "10022": "Midtown East",
+    "10023": "Upper West Side / Lincoln Center",
+    "10024": "Upper West Side",
+    "10025": "Morningside Heights",
+    "10026": "Central Harlem",
+    "10027": "Morningside Heights / Harlem",
+    "10028": "Upper East Side",
+    "10029": "East Harlem",
+    "10030": "Harlem",
+    "10031": "Hamilton Heights",
+    "10032": "Washington Heights",
+    "10033": "Washington Heights",
+    "10034": "Inwood / Marble Hill",
+    "10035": "East Harlem",
+    "10036": "Times Square / Hell's Kitchen",
+    "10037": "Harlem",
+    "10038": "Financial District / Seaport",
+    "10039": "Hamilton Heights / Harlem",
+    "10040": "Inwood",
+    "10301": "Staten Island",
+    "10451": "Bronx",
+    "11101": "Long Island City",
+    "11102": "Astoria",
+    "11103": "Astoria",
+    "11104": "Sunnyside",
+    "11105": "Astoria / Ditmars",
+    "11106": "Astoria",
+    "11201": "Downtown Brooklyn",
+    "11205": "Fort Greene / Clinton Hill",
+    "11206": "East Williamsburg / Bushwick",
+    "11211": "Williamsburg",
+    "11215": "Park Slope",
+    "11217": "Prospect Heights",
+    "11218": "Kensington / Windsor Terrace",
+    "11221": "Bed-Stuy / Bushwick",
+    "11222": "Greenpoint",
+    "11231": "Carroll Gardens / Red Hook",
+    "11238": "Clinton Hill / Prospect Heights",
+    "11249": "Williamsburg Waterfront",
+    "11354": "Flushing",
+    "11355": "Flushing",
+    "11368": "Corona",
+    "11372": "Jackson Heights",
+    "11373": "Elmhurst",
+    "11375": "Forest Hills",
 }
-
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     radius_km = 6371.0
@@ -279,19 +296,113 @@ def _normalize_search_text(value: object) -> str:
     return _SEARCH_TEXT_RE.sub(" ", normalized).strip()
 
 
+def canonicalize_borough(value: object) -> str:
+    normalized = _normalize_key(value)
+    if not normalized:
+        return ""
+    return _BOROUGH_ALIASES.get(normalized, _clean_text(value))
+
+
+def _default_radius_for_borough(borough: str) -> float:
+    if borough == "Manhattan":
+        return 1.0
+    if borough in {"Brooklyn", "Queens"}:
+        return 1.3
+    return 1.5
+
+
+_CURATED_AREA_LOOKUP = {
+    _normalize_search_text(area["name"]): area
+    for area in _CURATED_SEARCH_AREAS
+}
+
+
+def _build_search_areas() -> list[dict[str, Any]]:
+    alias_map_by_area: dict[str, set[str]] = {}
+    for raw_alias, raw_name in _LOCATION_KEYWORD_MAP.items():
+        alias = _clean_text(raw_alias)
+        canonical_name = _clean_text(raw_name)
+        if alias and canonical_name:
+            alias_map_by_area.setdefault(canonical_name, set()).add(alias)
+
+    built: list[dict[str, Any]] = []
+    for area in _CURATED_SEARCH_AREAS:
+        merged_area = dict(area)
+        merged_aliases = {
+            _clean_text(alias)
+            for alias in merged_area.get("aliases", [])
+            if _clean_text(alias)
+        }
+        merged_aliases.update(alias_map_by_area.get(merged_area["name"], set()))
+        merged_area["aliases"] = sorted(merged_aliases)
+        built.append(merged_area)
+    seen = set(_CURATED_AREA_LOOKUP.keys())
+
+    for raw_name, coords in _NEIGHBORHOOD_CENTROIDS.items():
+        name = _clean_text(raw_name)
+        normalized_name = _normalize_search_text(name)
+        if not name or normalized_name in seen:
+            continue
+        if not isinstance(coords, list) or len(coords) != 2:
+            continue
+
+        try:
+            latitude = float(coords[0])
+            longitude = float(coords[1])
+        except (TypeError, ValueError):
+            continue
+
+        borough = canonicalize_borough(_NEIGHBORHOOD_TO_BOROUGH.get(name, ""))
+        aliases = sorted(alias_map_by_area.get(name, set()))
+
+        built.append(
+            {
+                "name": name,
+                "aliases": aliases,
+                "lat": latitude,
+                "lon": longitude,
+                "radius_km": _default_radius_for_borough(borough),
+                "borough": borough,
+            }
+        )
+        seen.add(normalized_name)
+
+    return built
+
+
+def _build_zipcode_locations() -> dict[str, dict[str, Any]]:
+    built: dict[str, dict[str, Any]] = {}
+    for raw_zipcode, coords in _ZIPCODE_CENTROIDS.items():
+        zipcode = str(raw_zipcode).strip()
+        if not zipcode:
+            continue
+        if not isinstance(coords, list) or len(coords) != 2:
+            continue
+        try:
+            latitude = float(coords[0])
+            longitude = float(coords[1])
+        except (TypeError, ValueError):
+            continue
+
+        label = _ZIPCODE_LABEL_OVERRIDES.get(zipcode, f"ZIP {zipcode}")
+        built[zipcode] = {
+            "label": label,
+            "lat": latitude,
+            "lon": longitude,
+        }
+    return built
+
+
+SEARCH_AREAS: list[dict[str, Any]] = _build_search_areas()
+ZIPCODE_LOCATIONS: dict[str, dict[str, Any]] = _build_zipcode_locations()
+
+
 _AREA_BY_NORMALIZED_NAME: dict[str, dict[str, Any]] = {}
 for _area in SEARCH_AREAS:
     for _candidate in [_area["name"], *_area.get("aliases", [])]:
         _normalized_candidate = _normalize_search_text(_candidate)
         if _normalized_candidate:
             _AREA_BY_NORMALIZED_NAME[_normalized_candidate] = _area
-
-
-def canonicalize_borough(value: object) -> str:
-    normalized = _normalize_key(value)
-    if not normalized:
-        return ""
-    return _BOROUGH_ALIASES.get(normalized, _clean_text(value))
 
 
 def get_location_filter_options() -> list[str]:
@@ -479,3 +590,62 @@ def resolve_zipcode_location(zipcode: object) -> dict[str, Any] | None:
     if not normalized:
         return None
     return ZIPCODE_LOCATIONS.get(normalized)
+
+
+def _build_area_location_result(area: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "label": str(area.get("name", "")).strip(),
+        "lat": float(area["lat"]),
+        "lon": float(area["lon"]),
+        "area_label": str(area.get("name", "")).strip(),
+    }
+
+
+@lru_cache(maxsize=4096)
+def resolve_area_location(query: object) -> dict[str, Any] | None:
+    raw_query = _clean_text(query)
+    normalized_query = _normalize_search_text(raw_query)
+    if not normalized_query:
+        return None
+
+    exact_area = _AREA_BY_NORMALIZED_NAME.get(normalized_query)
+    if exact_area:
+        return _build_area_location_result(exact_area)
+
+    zipcode_match = re.search(r"\b(\d{5})\b", raw_query)
+    if zipcode_match:
+        zipcode = zipcode_match.group(1)
+        zipcode_location = resolve_zipcode_location(zipcode)
+        if zipcode_location:
+            return {
+                "label": f"ZIP {zipcode}",
+                "lat": float(zipcode_location["lat"]),
+                "lon": float(zipcode_location["lon"]),
+                "area_label": str(zipcode_location.get("label", "")).strip(),
+            }
+
+    best_area: dict[str, Any] | None = None
+    best_score: tuple[int, int, int] | None = None
+
+    for area in SEARCH_AREAS:
+        candidates = [area["name"], *area.get("aliases", [])]
+        for candidate in candidates:
+            normalized_candidate = _normalize_search_text(candidate)
+            if not normalized_candidate:
+                continue
+            if normalized_query not in normalized_candidate and normalized_candidate not in normalized_query:
+                continue
+
+            score = (
+                0 if normalized_query == normalized_candidate else 1,
+                abs(len(normalized_candidate) - len(normalized_query)),
+                len(normalized_candidate),
+            )
+            if best_score is None or score < best_score:
+                best_area = area
+                best_score = score
+
+    if best_area:
+        return _build_area_location_result(best_area)
+
+    return None

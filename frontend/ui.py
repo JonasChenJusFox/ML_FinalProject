@@ -23,6 +23,9 @@ from frontend.components.comments_modal import render_comments_modal
 from frontend.components.forgot_password_modal import render_forgot_password_modal
 from frontend.components.login_modal import render_login_modal
 from frontend.components.nav import render_nav
+from frontend.components.post_signup_questionnaire_dialog import (
+    render_post_signup_questionnaire_dialog,
+)
 from frontend.components.signup_modal import render_signup_modal
 from frontend.views.account import render_account
 from frontend.user_profile_state import init_user_profile_state
@@ -81,6 +84,7 @@ def render_app(search_callable: Callable | None, preview_restaurants: list[dict]
     render_signup_modal()
     render_forgot_password_modal()
     render_comments_modal()
+    render_post_signup_questionnaire_dialog()
     _render_help_dialog()
 
     current_page = render_nav()

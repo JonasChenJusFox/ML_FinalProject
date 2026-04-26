@@ -150,6 +150,7 @@ def save_questionnaire_answers(payload: dict) -> None:
     adapted_payload = _adapt_to_raw_answers(payload)
     st.session_state.questionnaire_answers = adapted_payload
     st.session_state.onboarding_completed = True
+    st.session_state.show_post_signup_questionnaire = False
 
     current_user = st.session_state.get("current_user")
     if current_user:
@@ -161,3 +162,4 @@ def reset_questionnaire_state() -> None:
     st.session_state.onboarding_completed = False
     st.session_state.editing_questionnaire = False
     st.session_state.questionnaire_loaded_for_user = None
+    st.session_state.show_post_signup_questionnaire = False

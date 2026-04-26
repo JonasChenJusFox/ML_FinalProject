@@ -145,7 +145,13 @@ def render_profile(restaurants: list[dict]) -> None:
         st.caption(f"Top cuisines: {cuisines_preview}")
         st.caption(f"Typical meals: {meals_preview}")
 
-    if st.session_state.get("editing_questionnaire", False) or not st.session_state.get("onboarding_completed", False):
+    post_signup_dialog_open = st.session_state.get("show_post_signup_questionnaire", False)
+    show_questionnaire_section = (
+        st.session_state.get("editing_questionnaire", False)
+        or not st.session_state.get("onboarding_completed", False)
+    ) and not post_signup_dialog_open
+
+    if show_questionnaire_section:
         st.markdown(
             "<div class='nb-section-title'>Questionnaire</div>",
             unsafe_allow_html=True,

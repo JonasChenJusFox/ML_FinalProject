@@ -57,6 +57,9 @@ def init_auth_state() -> None:
     if "post_login_redirect" not in st.session_state:
         st.session_state.post_login_redirect = None
 
+    if "show_post_signup_questionnaire" not in st.session_state:
+        st.session_state.show_post_signup_questionnaire = False
+
 
 def open_login_modal() -> None:
     st.session_state.show_login_modal = True
@@ -162,6 +165,8 @@ def signup(username: str, email: str, password: str, confirm_password: str) -> t
     st.session_state.show_signup_modal = False
     st.session_state.show_forgot_password_modal = False
     st.session_state.page = "Profile"
+    st.session_state.show_help_dialog = False
+    st.session_state.show_post_signup_questionnaire = True
     return True, "Account created successfully."
 
 

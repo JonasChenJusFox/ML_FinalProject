@@ -24,6 +24,7 @@ from frontend.components.forgot_password_modal import render_forgot_password_mod
 from frontend.components.login_modal import render_login_modal
 from frontend.components.nav import render_nav
 from frontend.components.signup_modal import render_signup_modal
+from frontend.views.account import render_account
 from frontend.user_profile_state import init_user_profile_state
 from frontend.views.discover import render_discover
 from frontend.views.home import render_home
@@ -33,6 +34,7 @@ PAGE_RENDERERS = {
     "Home": render_home,
     "Discover": render_discover,
     "Profile": render_profile,
+    "Account": render_account,
 }
 
 

@@ -197,6 +197,14 @@ def _adapt_filters(filters: dict | None) -> dict:
 
     origin_lat = filters.get("origin_lat")
     origin_lon = filters.get("origin_lon")
+    dietary = filters.get("dietary") or filters.get("dietary_restrictions") or []
+    if isinstance(dietary, str):
+        dietary = [dietary]
+    strict_dietary = bool(
+        filters.get("strict_dietary")
+        or filters.get("dietary_strict")
+        or filters.get("strict_dietary_filter")
+    )
 
     discover_categories = filters.get("discover_categories", [])
     discover_prices = filters.get("discover_prices", [])
@@ -207,8 +215,12 @@ def _adapt_filters(filters: dict | None) -> dict:
     explicit_cuisines = bool(cuisines)
     explicit_price = bool(prices)
     explicit_min_rating = filters.get("min_rating") is not None
-    explicit_max_distance = filters.get("max_distance_km") is not None
+    explicit_max_distance = (
+        filters.get("max_distance_km") is not None
+        or filters.get("discover_radius_minutes") is not None
+    )
     explicit_borough = borough not in (None, "All")
+    explicit_dietary = bool(dietary)
 
     if not explicit_cuisines and isinstance(discover_categories, list):
         explicit_cuisines = bool(discover_categories)
@@ -216,8 +228,6 @@ def _adapt_filters(filters: dict | None) -> dict:
         explicit_price = bool(discover_prices)
     if not explicit_min_rating and discover_min_rating is not None:
         explicit_min_rating = float(discover_min_rating) != 4.0
-    if not explicit_max_distance and discover_radius_minutes is not None:
-        explicit_max_distance = int(discover_radius_minutes) != 30
     if not explicit_borough and discover_borough is not None:
         explicit_borough = discover_borough != "All"
 
@@ -229,11 +239,14 @@ def _adapt_filters(filters: dict | None) -> dict:
         "borough": borough,
         "origin_lat": origin_lat,
         "origin_lon": origin_lon,
+        "dietary": list(dietary) if isinstance(dietary, list) else [],
+        "strict_dietary": strict_dietary,
         "explicit_cuisines": explicit_cuisines,
         "explicit_price": explicit_price,
         "explicit_min_rating": explicit_min_rating,
         "explicit_max_distance": explicit_max_distance,
         "explicit_borough": explicit_borough,
+        "explicit_dietary": explicit_dietary,
     }
 
 
@@ -258,7 +271,15 @@ def _merge_query_signals(filters: dict, parsed_query: dict[str, object]) -> dict
     merged = dict(filters)
 
     parsed_location = parsed_query.get("location")
-    if isinstance(parsed_location, str) and parsed_location:
+    if isinstance(parsed_location, dict):
+        origin_lat = parsed_location.get("lat")
+        origin_lon = parsed_location.get("lon")
+        if origin_lat is not None and origin_lon is not None:
+            if merged.get("origin_lat") is None:
+                merged["origin_lat"] = origin_lat
+            if merged.get("origin_lon") is None:
+                merged["origin_lon"] = origin_lon
+    elif isinstance(parsed_location, str) and parsed_location:
         coords = resolve_location_coordinate(parsed_location)
         if coords:
             origin_lat, origin_lon = coords
@@ -267,18 +288,27 @@ def _merge_query_signals(filters: dict, parsed_query: dict[str, object]) -> dict
             if merged.get("origin_lon") is None:
                 merged["origin_lon"] = origin_lon
 
-    distance_intent = parsed_query.get("distance_time_intent")
-    if isinstance(distance_intent, dict) and merged.get("max_distance_km") is None:
-        max_distance_km = distance_intent.get("max_km")
-        if max_distance_km is None:
-            max_minutes = distance_intent.get("max_minutes")
-            if isinstance(max_minutes, (int, float)):
-                max_distance_km = float(max_minutes) * (WALKING_SPEED_KMPH / 60.0)
-
-        if max_distance_km is not None:
-            merged["max_distance_km"] = max_distance_km
-
     return merged
+
+
+def _parsed_location_label(parsed_location: object) -> str | None:
+    if isinstance(parsed_location, dict):
+        label = parsed_location.get("label")
+        return str(label).strip() if label else None
+    if isinstance(parsed_location, str) and parsed_location.strip():
+        return parsed_location.strip()
+    return None
+
+
+def _first_filter_value(values: object) -> str | None:
+    if isinstance(values, list):
+        for value in values:
+            text = str(value or "").strip()
+            if text:
+                return text
+        return None
+    text = str(values or "").strip()
+    return text or None
 
 
 def _apply_borough_filter(restaurants: list[dict], borough: str | None) -> list[dict]:
@@ -332,49 +362,88 @@ def _build_filter_stages(
         "max_distance_km": adapted_filters.get("max_distance_km") if adapted_filters.get("explicit_max_distance") else None,
         "borough": adapted_filters.get("borough") if adapted_filters.get("explicit_borough") else None,
     }
+    if adapted_filters.get("strict_dietary") and adapted_filters.get("explicit_dietary"):
+        explicit_hard_filters["dietary"] = adapted_filters.get("dietary", [])
 
     query_hard_filters = dict(explicit_hard_filters)
     soft_preferences: dict[str, object] = {
-        "cuisines": [],
-        "price": None,
+        "cuisines": adapted_filters.get("cuisines", []) if adapted_filters.get("explicit_cuisines") else [],
+        "cuisine": adapted_filters.get("cuisines", []) if adapted_filters.get("explicit_cuisines") else [],
+        "dietary": adapted_filters.get("dietary", []) if adapted_filters.get("explicit_dietary") else [],
+        "price": _first_filter_value(adapted_filters.get("price", [])) if adapted_filters.get("explicit_price") else None,
         "location": None,
         "borough": None,
+        "origin_lat": adapted_filters.get("origin_lat"),
+        "origin_lon": adapted_filters.get("origin_lon"),
+        "nearby": False,
+        "max_distance_km": adapted_filters.get("max_distance_km") if adapted_filters.get("explicit_max_distance") else None,
         "occasion_vibe": [],
+        "vibe": [],
         "meal_context": [],
+        "meal_type": None,
     }
 
     if not parsed_query:
         return explicit_hard_filters, query_hard_filters, soft_preferences
 
     dietary = parsed_query.get("dietary", [])
-    if isinstance(dietary, list) and dietary:
-        query_hard_filters["dietary"] = [str(item).strip().lower() for item in dietary if str(item).strip()]
+    if not adapted_filters.get("explicit_dietary") and isinstance(dietary, list) and dietary:
+        soft_preferences["dietary"] = [
+            str(item).strip().lower()
+            for item in dietary
+            if str(item).strip()
+        ]
 
     distance_intent = parsed_query.get("distance_time_intent")
-    if isinstance(distance_intent, dict) and not explicit_hard_filters.get("max_distance_km"):
+    if isinstance(distance_intent, dict):
         max_km = distance_intent.get("max_km")
         if max_km is None:
             max_minutes = distance_intent.get("max_minutes")
             if isinstance(max_minutes, (int, float)):
                 max_km = float(max_minutes) * (WALKING_SPEED_KMPH / 60.0)
-        if max_km is not None:
-            query_hard_filters["max_distance_km"] = max_km
+        if not adapted_filters.get("explicit_max_distance") and max_km is not None:
+            soft_preferences["max_distance_km"] = max_km
+        soft_preferences["nearby"] = bool(distance_intent.get("near_me") or max_km is not None)
 
     parsed_price = parsed_query.get("price")
-    if isinstance(parsed_price, str) and parsed_price and parsed_price != "unknown":
+    if (
+        not adapted_filters.get("explicit_price")
+        and isinstance(parsed_price, str)
+        and parsed_price
+        and parsed_price != "unknown"
+    ):
         soft_preferences["price"] = parsed_price
 
     parsed_location = parsed_query.get("location")
-    if isinstance(parsed_location, str) and parsed_location:
-        soft_preferences["location"] = parsed_location
-        parsed_borough = _normalize_borough_name(parsed_location)
+    parsed_location_label = _parsed_location_label(parsed_location)
+    if parsed_location_label:
+        soft_preferences["location"] = parsed_location_label
+        parsed_borough = _normalize_borough_name(parsed_location_label)
         if parsed_borough:
             soft_preferences["borough"] = parsed_borough
 
-    for key in ("occasion_vibe", "meal_context"):
-        values = parsed_query.get(key, [])
-        if isinstance(values, list):
-            soft_preferences[key] = [str(item).strip().lower() for item in values if str(item).strip()]
+    parsed_cuisines = parsed_query.get("cuisine") or parsed_query.get("cuisines") or []
+    if not adapted_filters.get("explicit_cuisines") and isinstance(parsed_cuisines, list):
+        cleaned_cuisines = [str(item).strip().lower() for item in parsed_cuisines if str(item).strip()]
+        soft_preferences["cuisine"] = cleaned_cuisines
+        soft_preferences["cuisines"] = cleaned_cuisines
+
+    parsed_vibes = parsed_query.get("vibe") or parsed_query.get("occasion_vibe") or []
+    if isinstance(parsed_vibes, list):
+        cleaned_vibes = [str(item).strip().lower() for item in parsed_vibes if str(item).strip()]
+        soft_preferences["vibe"] = cleaned_vibes
+        soft_preferences["occasion_vibe"] = cleaned_vibes
+
+    parsed_meal_context = parsed_query.get("meal_context") or []
+    if isinstance(parsed_meal_context, list):
+        soft_preferences["meal_context"] = [
+            str(item).strip().lower()
+            for item in parsed_meal_context
+            if str(item).strip()
+        ]
+    parsed_meal_type = parsed_query.get("meal_type")
+    if isinstance(parsed_meal_type, str) and parsed_meal_type.strip():
+        soft_preferences["meal_type"] = parsed_meal_type.strip().lower()
 
     return explicit_hard_filters, query_hard_filters, soft_preferences
 
@@ -726,9 +795,7 @@ def search_restaurants(
     candidate_restaurants = _with_distance_km([r for r, _ in candidates], origin_lat, origin_lon)
     explicit_filtered = _apply_hard_filters(candidate_restaurants, explicit_hard_filters)
     hard_filtered = _apply_hard_filters(explicit_filtered, query_hard_filters)
-    soft_filtered = _apply_soft_preference_filter(hard_filtered, soft_preferences)
-
-    ranking_pool = soft_filtered
+    ranking_pool = hard_filtered
     if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS:
         ranking_pool = explicit_filtered if explicit_filtered else candidate_restaurants
 
@@ -748,7 +815,7 @@ def search_restaurants(
     ranked = rank_candidates(
         filtered_with_scores,
         user_price_pref=str(soft_preferences.get("price") or "") or None,
-        soft_preferences=soft_preferences,
+        active_filters=soft_preferences,
     )
 
     # Step 7: return top-k

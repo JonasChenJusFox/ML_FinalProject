@@ -263,6 +263,15 @@ hr {
   margin: 1.4rem 0 0.85rem 0;
 }
 
+.nb-section-title-strong {
+  font-size: 1.55rem;
+  letter-spacing: 0.12em;
+  font-weight: 800;
+  color: var(--nb-text);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
 /* =========================================================
    Panels / cards / wrapped / empty
    ========================================================= */

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from frontend.adapters import normalize_results, sort_results
+from frontend.adapters import normalize_results
 from frontend.auth import open_login_modal, open_signup_modal
 from frontend.components.restaurant_card import render_restaurant_card
 from frontend.components.search_bar import HOME_PLACEHOLDER
@@ -70,16 +70,14 @@ def render_home(restaurants: list[dict]) -> None:
             user_vector_only=True,
         )
 
-    normalized = normalize_results(recommendation_source)
-    focus_id = st.session_state.get("focus_business_id")
-    ordered = sort_results(normalized, focus_id)
+    ordered = normalize_results(recommendation_source)
 
     showing_nearby = user_id == "anonymous"
     st.markdown(
         (
-            "<div class='nb-section-title'>Default feed</div>"
+            "<div class='nb-section-title nb-section-title-strong'>POPULAR AROUND NYU</div>"
             if showing_nearby
-            else "<div class='nb-section-title'>For you right now</div>"
+            else "<div class='nb-section-title nb-section-title-strong'>FOR YOU RIGHT NOW</div>"
         ),
         unsafe_allow_html=True,
     )

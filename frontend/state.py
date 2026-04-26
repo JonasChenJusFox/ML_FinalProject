@@ -42,6 +42,9 @@ def init_state(preview_restaurants: list[dict]) -> None:
     if "user_lon" not in st.session_state:
         st.session_state.user_lon = None
 
+    if "user_origin_label" not in st.session_state:
+        st.session_state.user_origin_label = "NYU"
+
     if "page" not in st.session_state:
         st.session_state.page = "Home"
 

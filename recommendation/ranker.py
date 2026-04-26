@@ -15,6 +15,38 @@ DEFAULT_RANKING_WEIGHTS: dict[str, float] = {
     "distance": 0.05,
 }
 
+VEGAN_RELATED_TERMS: tuple[str, ...] = (
+    "vegan",
+    "plant-based",
+    "plant based",
+    "vegetarian",
+    "dairy-free",
+    "dairy free",
+    "meatless",
+)
+
+DIETARY_TERM_ALIASES: dict[str, tuple[str, ...]] = {
+    "vegan": VEGAN_RELATED_TERMS,
+    "plant-based": VEGAN_RELATED_TERMS,
+    "plant based": VEGAN_RELATED_TERMS,
+    "vegetarian": ("vegetarian", "vegan", "plant-based", "plant based", "meatless"),
+    "dairy-free": ("dairy-free", "dairy free", "vegan", "plant-based", "plant based"),
+    "dairy free": ("dairy-free", "dairy free", "vegan", "plant-based", "plant based"),
+    "meatless": ("meatless", "vegetarian", "vegan", "plant-based", "plant based"),
+    "gluten-free": ("gluten-free", "gluten free", "glutenfree", "celiac", "wheat-free", "wheat free"),
+    "halal": ("halal", "zabiha", "zabihah", "dhabiha"),
+    "kosher": ("kosher", "glatt kosher", "certified kosher"),
+}
+
+BOOST_WEIGHTS: dict[str, float] = {
+    "dietary": 0.65,
+    "location": 0.18,
+    "cuisine": 0.14,
+    "price": 0.06,
+    "vibe": 0.04,
+    "meal_type": 0.04,
+}
+
 
 def _extract_category_strings(restaurant: dict[str, Any]) -> set[str]:
     """Extract normalized category strings from a restaurant record."""
@@ -40,7 +72,15 @@ def _extract_category_strings(restaurant: dict[str, Any]) -> set[str]:
 def _restaurant_search_text(restaurant: dict[str, Any]) -> str:
     parts: list[str] = []
 
-    for key in ("name", "borough", "embedding_text", "document"):
+    for key in (
+        "name",
+        "borough",
+        "embedding_text",
+        "document",
+        "summary",
+        "description",
+        "review_snippet",
+    ):
         value = restaurant.get(key)
         if isinstance(value, str) and value.strip():
             parts.append(value.strip().lower())
@@ -48,9 +88,147 @@ def _restaurant_search_text(restaurant: dict[str, Any]) -> str:
     for list_key in ("categories", "tags", "vibes"):
         values = restaurant.get(list_key, [])
         if isinstance(values, list):
-            parts.extend(str(value).strip().lower() for value in values if str(value).strip())
+            for value in values:
+                if isinstance(value, dict):
+                    parts.extend(
+                        str(value.get(key, "")).strip().lower()
+                        for key in ("title", "name", "alias", "text")
+                        if str(value.get(key, "")).strip()
+                    )
+                elif str(value).strip():
+                    parts.append(str(value).strip().lower())
+
+    reviews = restaurant.get("google_reviews", [])
+    if isinstance(reviews, list):
+        for review in reviews[:8]:
+            if isinstance(review, dict):
+                text = str(review.get("text", "")).strip().lower()
+                if text:
+                    parts.append(text)
+            elif isinstance(review, str) and review.strip():
+                parts.append(review.strip().lower())
 
     return " ".join(parts)
+
+
+def _normalize_dietary_preferences(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        values = [values] if values else []
+
+    normalized: list[str] = []
+    for value in values:
+        text = str(value or "").strip().lower().replace("_", "-")
+        if text and text not in {"none", "no restriction", "no restrictions"}:
+            normalized.append(text)
+    return normalized
+
+
+def _as_clean_list(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        values = [values] if values else []
+    return [
+        str(value).strip().lower().replace("_", " ")
+        for value in values
+        if str(value or "").strip()
+    ]
+
+
+def _text_matches_any(text: str, values: list[str]) -> bool:
+    padded_text = f" {text.lower().replace('-', ' ')} "
+    for value in values:
+        normalized = value.strip().lower().replace("-", " ")
+        if normalized and f" {normalized} " in padded_text:
+            return True
+    return False
+
+
+def compute_dietary_preference_boost(
+    restaurant: dict[str, Any],
+    active_filters: dict[str, Any] | None = None,
+) -> float:
+    """Return a strong soft dietary boost without excluding non-matches."""
+    if not active_filters:
+        return 0.0
+
+    dietary_preferences = _normalize_dietary_preferences(active_filters.get("dietary", []))
+    if not dietary_preferences:
+        return 0.0
+
+    text = _restaurant_search_text(restaurant)
+    if not text:
+        return 0.0
+
+    boost = 0.0
+    for preference in dietary_preferences:
+        aliases = DIETARY_TERM_ALIASES.get(preference, (preference,))
+        if _text_matches_any(text, list(aliases)):
+            boost += 0.34 if preference in {"vegan", "plant-based", "plant based"} else 0.24
+
+    return min(0.42, boost)
+
+
+def compute_location_preference_boost(
+    restaurant: dict[str, Any],
+    active_filters: dict[str, Any] | None = None,
+) -> float:
+    if not active_filters:
+        return 0.0
+
+    has_location_intent = bool(
+        active_filters.get("location")
+        or active_filters.get("origin_lat") is not None
+        or active_filters.get("origin_lon") is not None
+        or active_filters.get("nearby")
+    )
+    if not has_location_intent:
+        return 0.0
+
+    return 0.14 * compute_distance_penalty(restaurant.get("distance_km"))
+
+
+def compute_cuisine_preference_boost(
+    restaurant: dict[str, Any],
+    active_filters: dict[str, Any] | None = None,
+) -> float:
+    if not active_filters:
+        return 0.0
+
+    cuisines = _as_clean_list(active_filters.get("cuisine") or active_filters.get("cuisines"))
+    if not cuisines:
+        return 0.0
+
+    text = _restaurant_search_text(restaurant)
+    return 0.12 if _text_matches_any(text, cuisines) else 0.0
+
+
+def compute_vibe_preference_boost(
+    restaurant: dict[str, Any],
+    active_filters: dict[str, Any] | None = None,
+) -> float:
+    if not active_filters:
+        return 0.0
+
+    values = _as_clean_list(active_filters.get("vibe") or active_filters.get("occasion_vibe"))
+    if not values:
+        return 0.0
+
+    text = _restaurant_search_text(restaurant)
+    return 0.05 if _text_matches_any(text, values) else 0.0
+
+
+def compute_meal_type_boost(
+    restaurant: dict[str, Any],
+    active_filters: dict[str, Any] | None = None,
+) -> float:
+    if not active_filters:
+        return 0.0
+
+    values = _as_clean_list(active_filters.get("meal_type") or active_filters.get("meal_context"))
+    if not values:
+        return 0.0
+
+    text = _restaurant_search_text(restaurant)
+    return 0.04 if _text_matches_any(text, values) else 0.0
 
 
 def _normalize_price_level(value: Any) -> float:
@@ -221,8 +399,8 @@ def compute_price_match(user_price_pref: str | None, restaurant_price: str | Non
     if not restaurant_price:
         return 0.5
 
-    user_level = price_level_value(user_price_pref)
-    restaurant_level = price_level_value(restaurant_price)
+    user_level = _normalize_price_level(user_price_pref)
+    restaurant_level = _normalize_price_level(restaurant_price)
 
     if user_level <= 0.0 or restaurant_level <= 0.0:
         return 0.5
@@ -259,37 +437,18 @@ def compute_soft_preference_boost(
     restaurant: dict[str, Any],
     soft_preferences: dict[str, Any] | None = None,
 ) -> float:
-    """Compute a small bounded boost from soft parsed query signals."""
+    """Compute the aggregate soft boost from already-parsed filter signals."""
     if not soft_preferences:
         return 0.0
 
-    boost = 0.0
-    text = _restaurant_search_text(restaurant)
+    dietary = compute_dietary_preference_boost(restaurant, soft_preferences)
+    location = compute_location_preference_boost(restaurant, soft_preferences)
+    cuisine = compute_cuisine_preference_boost(restaurant, soft_preferences)
+    price = 0.05 * compute_price_match(soft_preferences.get("price"), restaurant.get("price"))
+    vibe = compute_vibe_preference_boost(restaurant, soft_preferences)
+    meal_type = compute_meal_type_boost(restaurant, soft_preferences)
 
-    soft_price = soft_preferences.get("price")
-    if isinstance(soft_price, str) and soft_price.strip():
-        boost += 0.05 * compute_price_match(soft_price, restaurant.get("price"))
-
-    soft_borough = soft_preferences.get("borough")
-    if isinstance(soft_borough, str) and soft_borough and soft_borough != "All":
-        if str(restaurant.get("borough") or "").strip().lower() == soft_borough.strip().lower():
-            boost += 0.06
-
-    soft_location = soft_preferences.get("location")
-    if isinstance(soft_location, str) and soft_location.strip():
-        if soft_location.strip().lower() in text:
-            boost += 0.04
-
-    for key in ("meal_context", "occasion_vibe", "cuisines"):
-        values = soft_preferences.get(key, [])
-        if not isinstance(values, list):
-            continue
-        for value in values:
-            normalized = str(value).strip().lower().replace("_", " ")
-            if normalized and normalized in text:
-                boost += 0.025
-
-    return min(0.16, boost)
+    return min(0.50, dietary + location + cuisine + price + vibe + meal_type)
 
 
 def _merge_weights(weights: dict[str, float] | None) -> dict[str, float]:
@@ -450,10 +609,12 @@ def rank_candidates_from_fused_vector(
 def rank_candidates(
     candidates: list[tuple[dict[str, Any], float]],
     user_price_pref: str | None = None,
+    active_filters: dict[str, Any] | None = None,
     soft_preferences: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Compatibility wrapper for the older pipeline that already has similarity scores."""
 
+    filters = active_filters if active_filters is not None else soft_preferences
     ranked_results: list[dict[str, Any]] = []
     for restaurant, similarity_score in candidates:
         if not isinstance(restaurant, dict):
@@ -461,23 +622,45 @@ def rank_candidates(
 
         rating_score = compute_rating_score(restaurant.get("rating"))
         popularity_score = compute_popularity_score(restaurant.get("review_count"))
-        soft_boost = compute_soft_preference_boost(restaurant, soft_preferences)
+        dietary_boost = compute_dietary_preference_boost(restaurant, filters)
+        location_boost = compute_location_preference_boost(restaurant, filters)
+        cuisine_boost = compute_cuisine_preference_boost(restaurant, filters)
         price_match = compute_price_match(user_price_pref, restaurant.get("price"))
+        price_boost = 0.05 * price_match if user_price_pref else 0.0
+        vibe_boost = compute_vibe_preference_boost(restaurant, filters)
+        meal_type_boost = compute_meal_type_boost(restaurant, filters)
         distance_component = compute_distance_penalty(restaurant.get("distance_km"))
 
         final_score, breakdown = compute_final_score(
-            semantic_score=similarity_score + soft_boost,
+            semantic_score=similarity_score,
             rating_score=rating_score,
             popularity_score=popularity_score,
             price_match_score=price_match,
             distance_score=distance_component,
         )
+        weighted_boost = (
+            (BOOST_WEIGHTS["dietary"] * dietary_boost)
+            + (BOOST_WEIGHTS["location"] * location_boost)
+            + (BOOST_WEIGHTS["cuisine"] * cuisine_boost)
+            + (BOOST_WEIGHTS["price"] * price_boost)
+            + (BOOST_WEIGHTS["vibe"] * vibe_boost)
+            + (BOOST_WEIGHTS["meal_type"] * meal_type_boost)
+        )
+        final_score = clamp(final_score + weighted_boost)
+        breakdown["dietary_match"] = dietary_boost
+        breakdown["location_match"] = location_boost
+        breakdown["cuisine_match"] = cuisine_boost
+        breakdown["price_filter_match"] = price_boost
+        breakdown["vibe_match"] = vibe_boost
+        breakdown["meal_type_match"] = meal_type_boost
+        breakdown["total_filter_boost"] = weighted_boost
 
         result = dict(restaurant)
-        result["semantic_score"] = similarity_score + soft_boost
+        result["semantic_score"] = similarity_score
         result["final_score"] = final_score
         result["score_breakdown"] = breakdown
-        result["soft_preference_boost"] = soft_boost
+        result["soft_preference_boost"] = weighted_boost
+        result["dietary_match_boost"] = dietary_boost
         ranked_results.append(result)
 
     ranked_results.sort(key=lambda item: item.get("final_score", 0.0), reverse=True)

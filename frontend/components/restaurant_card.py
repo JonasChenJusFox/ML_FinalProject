@@ -38,16 +38,26 @@ def _get_price_for_card(restaurant: dict) -> str:
     """
     Resolve the best available price label for display on the card.
     """
+    missing_labels = {
+        "unknown",
+        "n/a",
+        "na",
+        "none",
+        "null",
+        "not available",
+        "price not listed",
+    }
+
     price_display = clean_text(restaurant.get("price_display", ""))
-    if price_display and price_display != "Price not listed":
+    if price_display and price_display.lower() not in missing_labels:
         return price_display
 
     price = clean_text(restaurant.get("price", ""))
-    if price:
+    if price and price.lower() not in missing_labels:
         return price
 
     price_original = clean_text(restaurant.get("price_original", ""))
-    if price_original:
+    if price_original and price_original.lower() not in missing_labels:
         return price_original
 
     try:
@@ -168,7 +178,6 @@ def _handle_focus_map(business_id: str) -> None:
     """
     st.session_state.focus_business_id = business_id
     st.session_state.jump_to_business_id = business_id
-    st.session_state.pending_discover_reset = True
     st.session_state.page = "Discover"
     st.rerun()
 
@@ -200,7 +209,10 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
     """
     business_id = restaurant.get("business_id", "")
     name = clean_text(restaurant.get("name", "Unknown"))
-    categories = " · ".join(restaurant.get("categories", [])[:3]) or "Restaurant"
+    raw_categories = restaurant.get("categories", [])
+    if not isinstance(raw_categories, list):
+        raw_categories = [raw_categories] if raw_categories else []
+    categories = " · ".join(clean_text(item) for item in raw_categories[:3] if clean_text(item)) or "Restaurant"
     rating = float(restaurant.get("rating", 0.0) or 0.0)
     address = clean_text(restaurant.get("address", ""))
     review_text = shorten_text(restaurant.get("review_snippet", ""), 180)
@@ -253,7 +265,7 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
     already_saved = business_id in saved_ids
     already_liked = business_id in liked_ids
 
-    row1 = st.columns(4, gap="small")
+    row1 = st.columns(3, gap="small")
     row2 = st.columns(2, gap="small")
 
     if row1[0].button(
@@ -280,31 +292,20 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
             st.rerun()
         _toggle_review_editor(f"{key_prefix}_{business_id}")
 
-    if row1[3].button(
-        "Focus map",
+    if row2[0].button(
+        "Focus Map",
         key=f"{key_prefix}_focus_{business_id}",
         use_container_width=True,
     ):
         _handle_focus_map(business_id)
 
-    if row2[0].button(
+    if row2[1].button(
         "Comments",
         key=f"{key_prefix}_comments_{business_id}",
         use_container_width=True,
     ):
         open_comments_modal(name, restaurant.get("google_reviews", []))
         st.rerun()
-
-    url = clean_text(restaurant.get("url", ""))
-    if url:
-        row2[1].link_button("Source", url, use_container_width=True)
-    else:
-        row2[1].button(
-            "No source",
-            key=f"{key_prefix}_nosource_{business_id}",
-            disabled=True,
-            use_container_width=True,
-        )
 
     review_open = st.session_state.get(f"{key_prefix}_{business_id}_review_open", False)
     if review_open:

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from frontend.adapters import normalize_results, sort_results
+from frontend.adapters import get_current_origin, normalize_results
 from frontend.components.empty_state import render_empty_state
 from frontend.components.location_picker import render_location_picker
 from frontend.components.map_view import render_map
@@ -41,8 +41,14 @@ def _initialize_discover_state() -> None:
     if "discover_min_rating" not in st.session_state:
         st.session_state.discover_min_rating = 4.0
 
+    if "discover_use_min_rating" not in st.session_state:
+        st.session_state.discover_use_min_rating = False
+
     if "discover_radius_minutes" not in st.session_state:
         st.session_state.discover_radius_minutes = 30
+
+    if "discover_use_radius" not in st.session_state:
+        st.session_state.discover_use_radius = False
 
     if "discover_visible_count" not in st.session_state:
         st.session_state.discover_visible_count = INITIAL_RESULT_COUNT
@@ -53,15 +59,15 @@ def _initialize_discover_state() -> None:
 
 def _apply_pending_reset() -> None:
     if st.session_state.get("pending_discover_reset", False):
-        st.session_state.discover_query = ""
-        st.session_state.search_query = ""
         st.session_state.discover_categories = []
         st.session_state.discover_borough = "All"
         st.session_state.discover_prices = []
         st.session_state.discover_min_rating = 4.0
+        st.session_state.discover_use_min_rating = False
         st.session_state.discover_radius_minutes = 30
+        st.session_state.discover_use_radius = False
         st.session_state.discover_visible_count = INITIAL_RESULT_COUNT
-        st.session_state.discover_last_feedback = "Filters cleared. Showing refreshed results."
+        st.session_state.discover_last_feedback = "Filters cleared. Your search query was kept."
         st.session_state.pending_discover_reset = False
 
 
@@ -73,33 +79,26 @@ def _active_filter_summary() -> list[str]:
         summary.append(f"borough: {st.session_state.get('discover_borough')}")
     if st.session_state.get("discover_prices"):
         summary.append(f"price: {', '.join(st.session_state.get('discover_prices', []))}")
-    if float(st.session_state.get("discover_min_rating", 4.0)) != 4.0:
+    if st.session_state.get("discover_use_min_rating", False):
         summary.append(f"min rating: {float(st.session_state.get('discover_min_rating', 4.0)):.1f}+")
-    if int(st.session_state.get("discover_radius_minutes", 30)) != 30:
+    if st.session_state.get("discover_use_radius", False):
         summary.append(f"radius: {int(st.session_state.get('discover_radius_minutes', 30))} min")
     return summary
 
 
 def _run_search(user_id: str) -> list[dict]:
+    origin = get_current_origin()
     backend_filters = {
         "discover_categories": st.session_state.get("discover_categories", []),
         "discover_borough": st.session_state.get("discover_borough", "All"),
         "discover_prices": st.session_state.get("discover_prices", []),
-        "discover_min_rating": float(st.session_state.get("discover_min_rating", 4.0)),
-        "discover_radius_minutes": int(st.session_state.get("discover_radius_minutes", 30)),
-        "origin_lat": (
-            float(st.session_state.get("user_lat"))
-            if st.session_state.get("use_my_location", False)
-            and st.session_state.get("user_lat") is not None
-            else None
-        ),
-        "origin_lon": (
-            float(st.session_state.get("user_lon"))
-            if st.session_state.get("use_my_location", False)
-            and st.session_state.get("user_lon") is not None
-            else None
-        ),
+        "origin_lat": origin["lat"],
+        "origin_lon": origin["lon"],
     }
+    if st.session_state.get("discover_use_min_rating", False):
+        backend_filters["discover_min_rating"] = float(st.session_state.get("discover_min_rating", 4.0))
+    if st.session_state.get("discover_use_radius", False):
+        backend_filters["discover_radius_minutes"] = int(st.session_state.get("discover_radius_minutes", 30))
 
     with st.spinner("Updating results..."):
         return search_restaurants(
@@ -115,7 +114,6 @@ def render_discover(restaurants: list[dict]) -> None:
     _apply_pending_reset()
     _initialize_discover_state()
 
-    normalized = normalize_results(restaurants or [])
     filter_options = st.session_state.get("filter_options", {})
 
     borough_options = ["All"] + filter_options.get("boroughs", [])
@@ -140,8 +138,9 @@ def render_discover(restaurants: list[dict]) -> None:
             st.session_state.discover_visible_count = INITIAL_RESULT_COUNT
             st.session_state.discover_last_feedback = "Results updated from your search."
 
+    render_location_picker()
+
     with st.expander("Advanced filters", expanded=False):
-        render_location_picker()
         filter_cols_a = st.columns(2, gap="large")
         filter_cols_b = st.columns(2, gap="large")
 
@@ -163,6 +162,10 @@ def render_discover(restaurants: list[dict]) -> None:
                 options=borough_options,
                 key="discover_borough",
             )
+            st.checkbox(
+                "Use minimum rating",
+                key="discover_use_min_rating",
+            )
             st.slider(
                 "Minimum rating",
                 min_value=0.0,
@@ -172,6 +175,10 @@ def render_discover(restaurants: list[dict]) -> None:
             )
 
         with filter_cols_b[0]:
+            st.checkbox(
+                "Use radius filter",
+                key="discover_use_radius",
+            )
             st.slider(
                 "Radius (minutes)",
                 min_value=5,
@@ -181,15 +188,19 @@ def render_discover(restaurants: list[dict]) -> None:
             )
 
         with filter_cols_b[1]:
+            if st.button("Apply filters", key="discover_apply_filters", use_container_width=True):
+                st.session_state.discover_visible_count = INITIAL_RESULT_COUNT
+                st.session_state.discover_last_feedback = "Filters applied."
+                st.rerun()
             if st.button("Clear filters", key="discover_clear_filters", use_container_width=True):
                 st.session_state.pending_discover_reset = True
                 st.rerun()
 
     active_filters = _active_filter_summary()
     if active_filters:
-        st.info("Using your search plus filters: " + " • ".join(active_filters))
+        st.info("Filters applied: " + ", ".join(active_filters))
     else:
-        st.info("Using your search and built-in query parsing. No manual filters are active.")
+        st.info("No filters applied")
 
     feedback = st.session_state.get("discover_last_feedback", "")
     if feedback:
@@ -210,44 +221,30 @@ def render_discover(restaurants: list[dict]) -> None:
         ]
     )
 
-    jump_id = st.session_state.get("jump_to_business_id")
-    if jump_id:
-        jump_item = next(
-            (item for item in normalized if item.get("business_id") == jump_id),
-            None,
-        )
-        if jump_item:
-            already_present = any(item.get("business_id") == jump_id for item in filtered)
-            if not already_present:
-                filtered = [jump_item] + filtered
-
-    focus_id = st.session_state.get("focus_business_id")
-    ordered = sort_results(filtered, focus_id)
-
     if "jump_to_business_id" in st.session_state:
         del st.session_state["jump_to_business_id"]
 
     summary_cols = st.columns([1.5, 1.2, 1.3], gap="small")
     summary_cols[0].markdown(
-        f"<div class='nb-panel-title'>Results · {len(ordered)} relevant places</div>",
+        f"<div class='nb-panel-title'>Results · {len(filtered)} relevant places</div>",
         unsafe_allow_html=True,
     )
     summary_cols[1].caption(
-        "Focused restaurant pinned first on the map and list."
-        if focus_id
+        "Focused restaurant is highlighted on the map."
+        if st.session_state.get("focus_business_id")
         else "Use Focus on map from a card to pin a place."
     )
     summary_cols[2].caption(
         "Showing the first "
-        f"{min(len(ordered), int(st.session_state.get('discover_visible_count', INITIAL_RESULT_COUNT)))} results."
+        f"{min(len(filtered), int(st.session_state.get('discover_visible_count', INITIAL_RESULT_COUNT)))} results."
     )
 
     st.markdown("<div class='nb-section-title'>Map</div>", unsafe_allow_html=True)
-    render_map(ordered[:80])
+    render_map(filtered[:80])
 
     st.markdown("<div class='nb-section-title'>Restaurants</div>", unsafe_allow_html=True)
 
-    if not ordered:
+    if not filtered:
         render_empty_state(
             "No matching restaurants",
             "Try a broader query or relax your advanced filters.",
@@ -255,17 +252,17 @@ def render_discover(restaurants: list[dict]) -> None:
         return
 
     visible_count = int(st.session_state.get("discover_visible_count", INITIAL_RESULT_COUNT))
-    visible_results = ordered[:visible_count]
+    visible_results = filtered[:visible_count]
 
     cols = st.columns(2, gap="large")
     for idx, item in enumerate(visible_results):
         with cols[idx % 2]:
             render_restaurant_card(item, key_prefix=f"discover_{idx}")
 
-    if len(visible_results) < len(ordered):
+    if len(visible_results) < len(filtered):
         if st.button("Show more", key="discover_show_more", use_container_width=True):
             st.session_state.discover_visible_count = min(
-                len(ordered),
+                len(filtered),
                 visible_count + RESULTS_INCREMENT,
             )
             st.rerun()

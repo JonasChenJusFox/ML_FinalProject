@@ -12,6 +12,11 @@ import re
 from pathlib import Path
 from typing import Any
 
+from embeddings.location_lookup import resolve_location_coordinate
+
+NYU_LAT = 40.7295
+NYU_LON = -73.9965
+
 PRICE_KEYWORDS: dict[str, tuple[str, ...]] = {
     "cheap": (
         "cheap",
@@ -229,6 +234,25 @@ MEAL_CONTEXT_KEYWORDS: dict[str, tuple[str, ...]] = {
     "drinks": ("drinks", "cocktails", "wine", "bar", "happy hour"),
 }
 
+CUISINE_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "ramen": ("ramen",),
+    "chinese": ("chinese", "chinese food"),
+    "sushi": ("sushi",),
+    "japanese": ("japanese", "japanese food"),
+    "thai": ("thai", "thai food"),
+    "korean": ("korean", "korean food"),
+    "indian": ("indian", "indian food"),
+    "mexican": ("mexican", "mexican food", "tacos", "taco", "burrito"),
+    "italian": ("italian", "italian food", "pasta", "pizza"),
+    "pizza": ("pizza",),
+    "dessert": ("dessert", "desserts", "bakery", "pastry", "pastries", "cake"),
+    "brunch": ("brunch",),
+    "coffee": ("coffee", "cafe", "espresso"),
+    "noodles": ("noodles", "noodle"),
+    "burger": ("burger", "burgers"),
+    "salad": ("salad", "salads"),
+}
+
 DISTANCE_NEARBY_KEYWORDS: tuple[str, ...] = (
     "near me",
     "nearby",
@@ -257,6 +281,22 @@ GENERIC_FILLER_WORDS: tuple[str, ...] = (
 SPECIAL_LOCATION_KEYWORDS: dict[str, str] = {
     "nyu": "NYU",
     "new york university": "NYU",
+    "campus": "NYU",
+    "washington square": "NYU",
+    "washington square park": "NYU",
+    "brooklyn": "Brooklyn",
+    "manhattan": "Manhattan",
+    "queens": "Queens",
+    "bronx": "Bronx",
+    "staten island": "Staten_Island",
+}
+
+BOROUGH_CENTROIDS: dict[str, tuple[float, float]] = {
+    "Brooklyn": (40.6782, -73.9442),
+    "Manhattan": (40.7831, -73.9712),
+    "Queens": (40.7282, -73.7949),
+    "Bronx": (40.8448, -73.8648),
+    "Staten_Island": (40.5795, -74.1502),
 }
 
 
@@ -298,6 +338,10 @@ def _contains_keyword(text: str, keyword: str) -> bool:
 
 def _extract_price_label(normalized_query: str, raw_query: str) -> str | None:
     """Extract a dataset-aligned textual price bucket from query keywords."""
+    under_amount = re.search(r"\b(?:under|below|less than)\s*\$?\s*(\d{1,3})\b", raw_query)
+    if under_amount and int(under_amount.group(1)) <= 20:
+        return "cheap"
+
     if "$$$$" in raw_query:
         return "luxury"
     if "$$$" in raw_query:
@@ -408,6 +452,33 @@ def _extract_location(normalized_query: str, location_keywords: dict | None) -> 
     return best_match[1] if best_match else None
 
 
+def _build_location_signal(label: str | None) -> dict[str, Any] | None:
+    if not label:
+        return None
+
+    if label == "NYU":
+        return {"label": "NYU", "lat": NYU_LAT, "lon": NYU_LON}
+
+    if label in BOROUGH_CENTROIDS:
+        lat, lon = BOROUGH_CENTROIDS[label]
+        return {"label": label, "lat": lat, "lon": lon}
+
+    coords = resolve_location_coordinate(label)
+    if not coords:
+        return {"label": label, "lat": None, "lon": None}
+
+    lat, lon = coords
+    return {"label": label, "lat": float(lat), "lon": float(lon)}
+
+
+def _primary_meal_type(meal_context: list[str]) -> str | None:
+    preferred_order = ("breakfast", "brunch", "lunch", "dinner", "late_night", "dessert", "drinks")
+    for value in preferred_order:
+        if value in meal_context:
+            return value
+    return meal_context[0] if meal_context else None
+
+
 def _remove_phrases(text: str, phrases: list[str]) -> str:
     """Remove recognized phrases from a normalized query string."""
     working = f" {text} "
@@ -444,13 +515,22 @@ def parse_query(query: str) -> dict[str, Any]:
 
     price = _extract_price_label(normalized_query, raw_query.lower())
     dietary = _extract_dietary(normalized_query)
-    location = _extract_location(normalized_query, LOCATION_KEYWORD_MAP)
+    location_label = _extract_location(normalized_query, LOCATION_KEYWORD_MAP)
+    location = _build_location_signal(location_label)
+    cuisine = _extract_tagged_matches(normalized_query, CUISINE_KEYWORDS)
+    occasion_vibe = _extract_tagged_matches(normalized_query, OCCASION_VIBE_KEYWORDS)
+    meal_context = _extract_tagged_matches(normalized_query, MEAL_CONTEXT_KEYWORDS)
 
     return {
         "price": price,
         "dietary": dietary,
         "location": location,
-        "occasion_vibe": _extract_tagged_matches(normalized_query, OCCASION_VIBE_KEYWORDS),
-        "distance_time_intent": _extract_distance_time_intent(normalized_query, raw_query, location),
-        "meal_context": _extract_tagged_matches(normalized_query, MEAL_CONTEXT_KEYWORDS),
+        "location_label": location_label,
+        "cuisine": cuisine,
+        "cuisines": cuisine,
+        "vibe": occasion_vibe,
+        "occasion_vibe": occasion_vibe,
+        "meal_type": _primary_meal_type(meal_context),
+        "meal_context": meal_context,
+        "distance_time_intent": _extract_distance_time_intent(normalized_query, raw_query, location_label),
     }

@@ -13,6 +13,7 @@ Responsibilities:
 from __future__ import annotations
 
 import re
+import html
 from collections import Counter
 
 import streamlit as st
@@ -26,7 +27,9 @@ from integration.api import (
 
 
 def clean_text(value: str) -> str:
-    return re.sub(r"\s+", " ", str(value or "")).strip()
+    text = html.unescape(str(value or ""))
+    text = re.sub(r"<[^>]*>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def shorten_text(value: str, limit: int = 160) -> str:
@@ -50,7 +53,7 @@ def get_current_origin() -> dict:
         and st.session_state.get("user_lon") is not None
     ):
         return {
-            "label": "My location",
+            "label": st.session_state.get("user_origin_label", "My location"),
             "lat": float(st.session_state["user_lat"]),
             "lon": float(st.session_state["user_lon"]),
         }
@@ -62,16 +65,18 @@ def get_current_origin() -> dict:
     }
 
 
-def set_user_origin(lat: float, lon: float) -> None:
+def set_user_origin(lat: float, lon: float, label: str = "My location") -> None:
     st.session_state.use_my_location = True
     st.session_state.user_lat = float(lat)
     st.session_state.user_lon = float(lon)
+    st.session_state.user_origin_label = label
 
 
 def reset_origin_to_nyu() -> None:
     st.session_state.use_my_location = False
     st.session_state.user_lat = None
     st.session_state.user_lon = None
+    st.session_state.user_origin_label = "NYU"
 
 
 
@@ -149,11 +154,11 @@ def _extract_address(raw: dict) -> str:
 
 def _extract_price_display(raw: dict) -> str:
     price = clean_text(raw.get("price", ""))
-    if price:
+    if price and price.lower() not in {"unknown", "n/a", "na", "none", "null", "not available", "price not listed"}:
         return price
 
     price_original = clean_text(raw.get("price_original", ""))
-    if price_original:
+    if price_original and price_original.lower() not in {"unknown", "n/a", "na", "none", "null", "not available", "price not listed"}:
         return price_original
 
     try:
@@ -164,7 +169,7 @@ def _extract_price_display(raw: dict) -> str:
     if price_level > 0:
         return "$" * price_level
 
-    return "Price not listed"
+    return ""
 
 
 def normalize_restaurant(raw: dict) -> dict:
@@ -223,17 +228,6 @@ def normalize_restaurant(raw: dict) -> dict:
 
 def normalize_results(restaurants: list[dict]) -> list[dict]:
     return [normalize_restaurant(item) for item in restaurants if isinstance(item, dict)]
-
-
-def sort_results(restaurants: list[dict], focus_business_id: str | None = None) -> list[dict]:
-    normalized = normalize_results(restaurants)
-
-    if not focus_business_id:
-        return normalized
-
-    focused = [item for item in normalized if item["business_id"] == focus_business_id]
-    remainder = [item for item in normalized if item["business_id"] != focus_business_id]
-    return focused + remainder
 
 
 def get_filter_options(restaurants: list[dict]) -> dict:

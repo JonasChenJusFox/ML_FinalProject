@@ -60,6 +60,30 @@ def render_map(restaurants: list[dict]) -> None:
                 icon=folium.Icon(color="orange", icon="cutlery", prefix="fa"),
             ).add_to(m)
 
+    # User-chosen "Current location" (Discover geolocation) — draw on top of restaurant pins.
+    if (
+        st.session_state.get("use_my_location", False)
+        and st.session_state.get("user_lat") is not None
+        and st.session_state.get("user_lon") is not None
+    ):
+        try:
+            user_lat = float(st.session_state["user_lat"])
+            user_lon = float(st.session_state["user_lon"])
+        except (TypeError, ValueError):
+            user_lat = user_lon = None
+        if user_lat is not None and user_lon is not None:
+            folium.CircleMarker(
+                location=[user_lat, user_lon],
+                radius=10,
+                color="#1e40af",
+                weight=2,
+                fill=True,
+                fill_color="#3b82f6",
+                fill_opacity=0.9,
+                popup="Your location (search origin)",
+                tooltip="Your location",
+            ).add_to(m)
+
     payload = st_folium(
         m,
         width=None,

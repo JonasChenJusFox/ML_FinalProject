@@ -34,6 +34,32 @@ from integration.interaction_repo import (
 
 REVIEW_OPTIONS = ["love", "neutral", "hate"]
 
+# Display-only: backend / ranker may still use semantic labels on ``price`` fields.
+_SEMANTIC_PRICE_TO_DOLLARS: dict[str, str] = {
+    "cheap": "$",
+    "budget": "$",
+    "affordable": "$",
+    "moderate": "$$",
+    "mid range": "$$",
+    "midrange": "$$",
+    "expensive": "$$$",
+    "upscale": "$$$",
+    "luxury": "$$$$",
+    "unknown": "",
+}
+
+
+def _format_price_for_ui(label: str) -> str:
+    """Turn semantic price words into ``$`` tiers for the card only; leave other labels as-is."""
+    text = (label or "").strip()
+    if not text:
+        return ""
+    if text.replace("$", "").strip() == "":
+        return text
+    key = text.lower().replace("-", " ").strip()
+    return _SEMANTIC_PRICE_TO_DOLLARS.get(key, text)
+
+
 # Injected into components.html iframe so card layout matches main app CSS.
 _CARD_IFRAME_STYLES = """
 <style>
@@ -119,15 +145,15 @@ def _get_price_for_card(restaurant: dict) -> str:
 
     price_display = clean_text(restaurant.get("price_display", ""))
     if price_display and price_display.lower() not in missing_labels:
-        return price_display
+        return _format_price_for_ui(price_display)
 
     price = clean_text(restaurant.get("price", ""))
     if price and price.lower() not in missing_labels:
-        return price
+        return _format_price_for_ui(price)
 
     price_original = clean_text(restaurant.get("price_original", ""))
     if price_original and price_original.lower() not in missing_labels:
-        return price_original
+        return _format_price_for_ui(price_original)
 
     try:
         price_level = int(restaurant.get("price_level", 0) or 0)

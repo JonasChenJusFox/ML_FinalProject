@@ -16,6 +16,7 @@ from __future__ import annotations
 import html
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from frontend.adapters import clean_text, get_current_origin, shorten_text
 from frontend.auth import open_login_modal
@@ -32,6 +33,74 @@ from integration.interaction_repo import (
 )
 
 REVIEW_OPTIONS = ["love", "neutral", "hate"]
+
+# Injected into components.html iframe so card layout matches main app CSS.
+_CARD_IFRAME_STYLES = """
+<style>
+  .nb-card-wrap { margin-bottom: 0.9rem; }
+  .nb-card {
+    overflow: hidden;
+    background: #fffdf9;
+    border: 1px solid #ddd4c9;
+    box-shadow: 0 10px 24px rgba(31, 28, 25, 0.06);
+    font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #1f1c19;
+  }
+  .nb-card-image,
+  .nb-card-image-placeholder {
+    width: 100%;
+    height: 240px;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    background: linear-gradient(180deg, #ebe2d8 0%, #ddd2c8 100%);
+  }
+  .nb-card-image-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #7d746b;
+  }
+  .nb-card-image-fallback { font-size: 0.95rem; }
+  .nb-card-body { padding: 1rem; }
+  .nb-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .nb-card-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1f1c19;
+    margin-bottom: 0.22rem;
+    line-height: 1.25;
+  }
+  .nb-card-cuisine,
+  .nb-card-meta,
+  .nb-card-address,
+  .nb-card-review { color: #6a6158; }
+  .nb-card-meta { margin: 0.72rem 0 0.46rem 0; font-size: 0.95rem; }
+  .nb-card-address { font-size: 0.92rem; margin-bottom: 0.55rem; line-height: 1.5; }
+  .nb-card-review {
+    line-height: 1.72;
+    font-size: 0.96rem;
+    border-top: 1px solid #eee5db;
+    padding-top: 0.75rem;
+    min-height: 5.1rem;
+  }
+  .nb-rating-pill {
+    border: 1px solid #e5cabd;
+    background: #fff0eb;
+    color: #d96558;
+    font-weight: 700;
+    padding: 0.42rem 0.66rem;
+    white-space: nowrap;
+    min-width: 72px;
+    text-align: center;
+  }
+</style>
+"""
 
 
 def _get_price_for_card(restaurant: dict) -> str:
@@ -225,35 +294,32 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
             f"alt='{html.escape(name, quote=True)}' class='nb-card-image'/>"
         )
     else:
-        image_html = """
-        <div class='nb-card-image nb-card-image-placeholder'>
-          <div class='nb-card-image-fallback'>Image unavailable</div>
-        </div>
-        """
+        image_html = (
+            "<div class='nb-card-image nb-card-image-placeholder'>"
+            "<div class='nb-card-image-fallback'>Image unavailable</div></div>"
+        )
 
-    st.markdown(
-        f"""
-        <div class="nb-card-wrap">
-          <div class="nb-card">
-            {image_html}
-            <div class="nb-card-body">
-              <div class="nb-card-head">
-                <div>
-                  <div class="nb-card-name">{html.escape(name)}</div>
-                  <div class="nb-card-cuisine">{html.escape(categories)}</div>
-                </div>
-                <div class="nb-rating-pill">⭐ {rating:.1f}</div>
-              </div>
-              <div class="nb-card-meta">{html.escape(meta)}</div>
-              <div class="nb-card-address">{html.escape(address) if address else "Address not listed"}</div>
-              <div class="nb-card-review">
-                {html.escape(review_text) if review_text else "No review snippet available."}
-              </div>
-            </div>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    # components.html bypasses Markdown; st.markdown can still surface HTML as plain text
+    # for some payloads (e.g. review text with Markdown-like characters).
+    address_display = html.escape(address) if address else "Address not listed"
+    review_display = (
+        html.escape(review_text) if review_text else "No review snippet available."
+    )
+    card_inner = (
+        f'<div class="nb-card-wrap"><div class="nb-card">{image_html}'
+        f'<div class="nb-card-body"><div class="nb-card-head"><div>'
+        f'<div class="nb-card-name">{html.escape(name)}</div>'
+        f'<div class="nb-card-cuisine">{html.escape(categories)}</div></div>'
+        f'<div class="nb-rating-pill">⭐ {rating:.1f}</div></div>'
+        f'<div class="nb-card-meta">{html.escape(meta)}</div>'
+        f'<div class="nb-card-address">{address_display}</div>'
+        f'<div class="nb-card-review">{review_display}</div>'
+        f"</div></div></div>"
+    )
+    components.html(
+        _CARD_IFRAME_STYLES + card_inner,
+        height=380,
+        scrolling=False,
     )
 
     interaction_map = st.session_state.get("interaction_map", {}) or {}

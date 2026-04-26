@@ -317,6 +317,34 @@ def _apply_borough_filter(restaurants: list[dict], borough: str | None) -> list[
     return [item for item in restaurants if item.get("borough") == borough]
 
 
+def _restaurant_lat_lon(restaurant: dict) -> tuple[float | None, float | None]:
+    coords = restaurant.get("coordinates") or {}
+    lat = _safe_float(restaurant.get("latitude") or coords.get("latitude"), 0.0)
+    lon = _safe_float(restaurant.get("longitude") or coords.get("longitude"), 0.0)
+    if lat and lon:
+        return lat, lon
+    return None, None
+
+
+def _filter_within_radius_km(
+    restaurants: list[dict],
+    center_lat: float,
+    center_lon: float,
+    max_km: float,
+) -> list[dict]:
+    """Keep restaurants whose coordinates fall within ``max_km`` of the center."""
+    if max_km <= 0.0:
+        return restaurants
+    kept: list[dict] = []
+    for item in restaurants:
+        lat, lon = _restaurant_lat_lon(item)
+        if lat is None or lon is None:
+            continue
+        if manhattan_distance_km(center_lat, center_lon, lat, lon) <= max_km:
+            kept.append(item)
+    return kept
+
+
 def _restaurant_matches_dietary(restaurant: dict, dietary_terms: list[str]) -> bool:
     if not dietary_terms:
         return True
@@ -444,6 +472,10 @@ def _build_filter_stages(
     parsed_meal_type = parsed_query.get("meal_type")
     if isinstance(parsed_meal_type, str) and parsed_meal_type.strip():
         soft_preferences["meal_type"] = parsed_meal_type.strip().lower()
+
+    place = parsed_query.get("in_near_place_filter")
+    if isinstance(place, dict) and place.get("kind") == "borough" and place.get("borough"):
+        query_hard_filters["borough"] = place["borough"]
 
     return explicit_hard_filters, query_hard_filters, soft_preferences
 
@@ -795,8 +827,24 @@ def search_restaurants(
     candidate_restaurants = _with_distance_km([r for r, _ in candidates], origin_lat, origin_lon)
     explicit_filtered = _apply_hard_filters(candidate_restaurants, explicit_hard_filters)
     hard_filtered = _apply_hard_filters(explicit_filtered, query_hard_filters)
+
+    strict_in_near = isinstance(parsed_query, dict) and bool(parsed_query.get("in_near_place_filter"))
+    if strict_in_near and isinstance(parsed_query, dict):
+        place = parsed_query.get("in_near_place_filter")
+        if isinstance(place, dict) and place.get("kind") == "neighborhood":
+            center_lat = place.get("lat")
+            center_lon = place.get("lon")
+            radius_km = place.get("radius_km", 1.6)
+            if isinstance(center_lat, (int, float)) and isinstance(center_lon, (int, float)):
+                hard_filtered = _filter_within_radius_km(
+                    hard_filtered,
+                    float(center_lat),
+                    float(center_lon),
+                    float(radius_km) if isinstance(radius_km, (int, float)) else 1.6,
+                )
+
     ranking_pool = hard_filtered
-    if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS:
+    if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS and not strict_in_near:
         ranking_pool = explicit_filtered if explicit_filtered else candidate_restaurants
 
     # Step 5: Rebuild (restaurant, score) tuples after filtering

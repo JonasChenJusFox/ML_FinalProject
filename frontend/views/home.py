@@ -51,7 +51,9 @@ def render_home(restaurants: list[dict]) -> None:
     user_id = current_user.get("username") or "anonymous"
 
     if user_id == "anonymous":
-        st.info("Browsing anonymously shows a simple default feed. Log in to save places, answer the questionnaire, and personalize results.")
+        st.info(
+            "Browsing anonymously shows a simple default feed. Log in to save places, answer the questionnaire, and personalize results."
+        )
         auth_cols = st.columns(2, gap="small")
         if auth_cols[0].button("Log in", key="home_login_for_personalization", use_container_width=True):
             open_login_modal()

@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from embeddings.location_lookup import resolve_location_coordinate
+from embeddings.location_lookup import NEIGHBORHOOD_CENTROIDS, resolve_location_coordinate
 
 NYU_LAT = 40.7295
 NYU_LON = -73.9965
@@ -490,6 +490,153 @@ def _remove_phrases(text: str, phrases: list[str]) -> str:
     return " ".join(working.split())
 
 
+_IN_NEAR_CAPTURE_BLACKLIST = frozenset(
+    {
+        "me",
+        "my",
+        "you",
+        "us",
+        "it",
+        "here",
+        "there",
+        "this",
+        "that",
+        "tomorrow",
+        "today",
+        "now",
+    }
+)
+
+# Dataset uses ``Staten Island`` (spaced); keep aligned with ``restaurants.json``.
+_BOROUGH_FROM_IN_NEAR_PHRASE: dict[str, str] = {
+    "manhattan": "Manhattan",
+    "brooklyn": "Brooklyn",
+    "queens": "Queens",
+    "bronx": "Bronx",
+    "staten island": "Staten Island",
+    "staten_island": "Staten Island",
+}
+
+# Walking-distance scale: keep results inside the named block / hood.
+IN_NEAR_NEIGHBORHOOD_RADIUS_KM = 1.6
+
+
+def _trim_in_near_tail(phrase: str) -> str:
+    """Drop trailing conjunctive / filler clauses after the place token."""
+    text = phrase.strip().strip("'\"")
+    if not text:
+        return ""
+    for splitter in (
+        r"\s+and\s+",
+        r"\s+or\s+",
+        r"\s+with\s+",
+        r"\s+without\s+",
+        r"\s+for\s+",
+        r"\s+from\s+",
+    ):
+        parts = re.split(splitter, text, maxsplit=1, flags=re.IGNORECASE)
+        text = parts[0].strip()
+    return text
+
+
+def _strip_leading_articles(phrase: str) -> str:
+    text = phrase.strip()
+    lowered = text.lower()
+    for art in ("the ", "a ", "an "):
+        if lowered.startswith(art):
+            text = text[len(art) :].lstrip()
+            lowered = text.lower()
+    return text
+
+
+def _borough_from_in_near_phrase(phrase: str) -> str | None:
+    normalized = phrase.strip().lower().replace("_", " ")
+    if not normalized:
+        return None
+    return _BOROUGH_FROM_IN_NEAR_PHRASE.get(normalized)
+
+
+def _resolve_neighborhood_centroid(phrase: str) -> tuple[str, float, float] | None:
+    """Return ``(label, lat, lon)`` when the phrase resolves to a mapped or known hood."""
+    cleaned = _strip_leading_articles(_trim_in_near_tail(phrase))
+    if len(cleaned) < 2:
+        return None
+
+    cleaned_lower = cleaned.lower()
+    for alias, label in sorted(SPECIAL_LOCATION_KEYWORDS.items(), key=lambda kv: len(kv[0]), reverse=True):
+        if cleaned_lower == alias.lower():
+            sig = _build_location_signal(label)
+            if sig and sig.get("lat") is not None and sig.get("lon") is not None:
+                return (str(label), float(sig["lat"]), float(sig["lon"]))
+
+    for keyword, neighborhood in sorted(
+        LOCATION_KEYWORD_MAP.items(),
+        key=lambda kv: len(str(kv[0])),
+        reverse=True,
+    ):
+        kw = str(keyword).strip()
+        if not kw:
+            continue
+        if cleaned.lower() == kw.lower():
+            hood = str(neighborhood).strip()
+            coords = resolve_location_coordinate(hood)
+            if coords:
+                return (hood, float(coords[0]), float(coords[1]))
+            continue
+
+    coords_direct = resolve_location_coordinate(cleaned)
+    if coords_direct:
+        return (cleaned, float(coords_direct[0]), float(coords_direct[1]))
+
+    cleaned_lower = cleaned.lower()
+    for key in sorted(NEIGHBORHOOD_CENTROIDS.keys(), key=len, reverse=True):
+        if cleaned_lower == key.lower():
+            coord = NEIGHBORHOOD_CENTROIDS[key]
+            if isinstance(coord, list) and len(coord) == 2:
+                return (key, float(coord[0]), float(coord[1]))
+    return None
+
+
+def _extract_in_near_place_filter(raw_query: str) -> dict[str, Any] | None:
+    """
+    Detect ``in <place>`` / ``near <place>`` where ``<place>`` is a borough or a
+    resolvable neighborhood. Used to hard-filter search results to that area.
+    """
+    raw = str(raw_query or "")
+    if not raw.strip():
+        return None
+
+    matches = list(re.finditer(r"\b(in|near)\s+([^\n,.;!?]{2,60})", raw, flags=re.IGNORECASE))
+    if not matches:
+        return None
+
+    for match in reversed(matches):
+        raw_capture = match.group(2).strip()
+        capture = _strip_leading_articles(_trim_in_near_tail(raw_capture))
+        if not capture:
+            continue
+        first = capture.split()[0].lower() if capture.split() else ""
+        if first in _IN_NEAR_CAPTURE_BLACKLIST or capture.lower() in _IN_NEAR_CAPTURE_BLACKLIST:
+            continue
+
+        borough = _borough_from_in_near_phrase(capture)
+        if borough:
+            return {"kind": "borough", "borough": borough, "phrase": capture}
+
+        neighbor = _resolve_neighborhood_centroid(capture)
+        if neighbor:
+            label, lat, lon = neighbor
+            return {
+                "kind": "neighborhood",
+                "label": label,
+                "lat": lat,
+                "lon": lon,
+                "radius_km": IN_NEAR_NEIGHBORHOOD_RADIUS_KM,
+                "phrase": capture,
+            }
+    return None
+
+
 def minimal_clean_query(query: str) -> str:
     """Perform minimal cleaning: trim whitespace and normalize spacing.
     
@@ -520,6 +667,7 @@ def parse_query(query: str) -> dict[str, Any]:
     cuisine = _extract_tagged_matches(normalized_query, CUISINE_KEYWORDS)
     occasion_vibe = _extract_tagged_matches(normalized_query, OCCASION_VIBE_KEYWORDS)
     meal_context = _extract_tagged_matches(normalized_query, MEAL_CONTEXT_KEYWORDS)
+    in_near_place_filter = _extract_in_near_place_filter(raw_query)
 
     return {
         "price": price,
@@ -533,4 +681,5 @@ def parse_query(query: str) -> dict[str, Any]:
         "meal_type": _primary_meal_type(meal_context),
         "meal_context": meal_context,
         "distance_time_intent": _extract_distance_time_intent(normalized_query, raw_query, location_label),
+        "in_near_place_filter": in_near_place_filter,
     }

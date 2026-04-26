@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from frontend.components.map_view import clear_discover_map_pin_selection
 from frontend.theme import asset_to_data_uri
 
 PAGES = ["Home", "Discover", "Profile", "Account"]
@@ -55,6 +56,8 @@ def render_nav() -> str:
                 type=button_type,
             ):
                 st.session_state.page = page
+                if page != "Discover":
+                    clear_discover_map_pin_selection()
                 st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)

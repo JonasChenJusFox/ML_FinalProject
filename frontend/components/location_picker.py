@@ -48,15 +48,21 @@ def render_location_picker() -> None:
         return
 
     if mode == "Zip code":
-        cols = st.columns([3, 1], gap="small")
-        with cols[0]:
-            zipcode = st.text_input(
-                "Zip code",
-                key="discover_zipcode",
-                placeholder="10003",
-            )
-        with cols[1]:
-            apply_zip = st.button("Use zip", key="discover_use_zip", use_container_width=True)
+        # st.form: pressing Enter while the zip field is focused submits the form (same as "Use zip").
+        with st.form("discover_zipcode_form", clear_on_submit=False):
+            field_col, btn_col = st.columns([3, 1], gap="small")
+            with field_col:
+                zipcode = st.text_input(
+                    "Zip code",
+                    key="discover_zipcode",
+                    placeholder="10003",
+                )
+            with btn_col:
+                apply_zip = st.form_submit_button(
+                    "Use zip",
+                    key="discover_use_zip",
+                    use_container_width=True,
+                )
 
         if apply_zip:
             coords = lookup_zipcode_coordinate(zipcode.strip())

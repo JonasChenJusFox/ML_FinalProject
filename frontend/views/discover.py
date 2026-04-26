@@ -17,8 +17,9 @@ import streamlit as st
 from frontend.adapters import get_current_origin, normalize_results
 from frontend.components.empty_state import render_empty_state
 from frontend.components.location_picker import render_location_picker
-from frontend.components.map_view import render_map
+from frontend.components.map_view import clear_discover_map_pin_selection, render_map
 from frontend.components.restaurant_card import render_restaurant_card
+from frontend.components.restaurant_profile_dialog import render_restaurant_profile_dialog
 from integration.api import search_restaurants
 
 INITIAL_RESULT_COUNT = 12
@@ -69,6 +70,7 @@ def _apply_pending_reset() -> None:
         st.session_state.discover_visible_count = INITIAL_RESULT_COUNT
         st.session_state.discover_last_feedback = "Filters cleared. Your search query was kept."
         st.session_state.pending_discover_reset = False
+        st.session_state._discover_force_map_reset = True
 
 
 def _active_filter_summary() -> list[str]:
@@ -137,6 +139,7 @@ def render_discover(restaurants: list[dict]) -> None:
         if search_submitted:
             st.session_state.discover_visible_count = INITIAL_RESULT_COUNT
             st.session_state.discover_last_feedback = "Results updated from your search."
+            st.session_state._discover_force_map_reset = True
 
     render_location_picker()
 
@@ -191,6 +194,7 @@ def render_discover(restaurants: list[dict]) -> None:
             if st.button("Apply filters", key="discover_apply_filters", use_container_width=True):
                 st.session_state.discover_visible_count = INITIAL_RESULT_COUNT
                 st.session_state.discover_last_feedback = "Filters applied."
+                st.session_state._discover_force_map_reset = True
                 st.rerun()
             if st.button("Clear filters", key="discover_clear_filters", use_container_width=True):
                 st.session_state.pending_discover_reset = True
@@ -221,6 +225,14 @@ def render_discover(restaurants: list[dict]) -> None:
         ]
     )
 
+    results_sig = frozenset(r.get("business_id") for r in filtered[:80] if r.get("business_id"))
+    prev_sig = st.session_state.get("_discover_map_results_sig")
+    if st.session_state.pop("_discover_force_map_reset", False) or (
+        prev_sig is not None and prev_sig != results_sig
+    ):
+        clear_discover_map_pin_selection()
+    st.session_state._discover_map_results_sig = results_sig
+
     if "jump_to_business_id" in st.session_state:
         del st.session_state["jump_to_business_id"]
 
@@ -230,9 +242,9 @@ def render_discover(restaurants: list[dict]) -> None:
         unsafe_allow_html=True,
     )
     summary_cols[1].caption(
-        "Focused restaurant is highlighted on the map."
+        "Focused restaurant is highlighted in red. Tap a pin to open its profile."
         if st.session_state.get("focus_business_id")
-        else "Use Focus on map from a card to pin a place."
+        else "Tap a map pin to open a place, or use Focus on map from a card."
     )
     summary_cols[2].caption(
         "Showing the first "
@@ -241,6 +253,7 @@ def render_discover(restaurants: list[dict]) -> None:
 
     st.markdown("<div class='nb-section-title'>Map</div>", unsafe_allow_html=True)
     render_map(filtered[:80])
+    render_restaurant_profile_dialog(filtered)
 
     st.markdown("<div class='nb-section-title'>Restaurants</div>", unsafe_allow_html=True)
 

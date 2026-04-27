@@ -28,7 +28,7 @@ from embeddings.vectorizer import (
     embed_user,
     retrieve_top_k,
 )
-from recommendation.ranker import apply_filters, fuse_vectors, rank_candidates
+from recommendation.ranker import fuse_vectors, rank_candidates, _normalize_price_level
 from integration.user_repo import get_user_profile, update_latest_embedding
 
 # ---------------------------------------------------------------------------
@@ -124,6 +124,55 @@ def _with_distance_km(restaurants: list[dict], origin_lat: float | None = None, 
     return enriched
 
 
+def _extract_category_strings(restaurant: dict) -> set[str]:
+    """Extract normalized category strings from a restaurant record."""
+    categories = restaurant.get("categories", [])
+    extracted: set[str] = set()
+    if isinstance(categories, list):
+        for category in categories:
+            if isinstance(category, str):
+                cleaned = category.strip().lower()
+                if cleaned:
+                    extracted.add(cleaned)
+            elif isinstance(category, dict):
+                title = category.get("title") or category.get("name")
+                if isinstance(title, str):
+                    cleaned = title.strip().lower()
+                    if cleaned:
+                        extracted.add(cleaned)
+    return extracted
+
+
+def _apply_base_hard_filters(candidates: list[dict], filters: dict) -> list[dict]:
+    """Apply minimal, explicit structued constraints."""
+    if not candidates or not filters:
+        return list(candidates)
+
+    allowed_prices = {_normalize_price_level(price) for price in filters.get("price", []) if _normalize_price_level(price) > 0.0}
+    required_categories = {str(category).strip().lower() for category in filters.get("cuisines", []) if str(category).strip()}
+    min_rating = _safe_float(filters.get("min_rating"), 0.0)
+    max_distance_km = filters.get("max_distance_km")
+
+    filtered: list[dict] = []
+    for restaurant in candidates:
+        if allowed_prices:
+            restaurant_price = _normalize_price_level(restaurant.get("price"))
+            if restaurant_price not in allowed_prices:
+                continue
+        if required_categories:
+            restaurant_categories = _extract_category_strings(restaurant)
+            if not (restaurant_categories & required_categories):
+                continue
+        if _safe_float(restaurant.get("rating"), 0.0) < min_rating:
+            continue
+        if max_distance_km is not None:
+            distance = restaurant.get("distance_km")
+            if distance is not None and _safe_float(distance, 0.0) > _safe_float(max_distance_km, 0.0):
+                continue
+        filtered.append(restaurant)
+    return filtered
+
+
 def _rank_by_location_and_rating(
     restaurants: list[dict],
     filters: dict,
@@ -134,7 +183,7 @@ def _rank_by_location_and_rating(
     origin_lon = _safe_float(filters.get("origin_lon"), NYU_LON)
     
     ranked = _with_distance_km(restaurants, origin_lat, origin_lon)
-    ranked = apply_filters(ranked, filters)
+    ranked = _apply_base_hard_filters(ranked, filters)
     ranked = _apply_borough_filter(ranked, filters.get("borough"))
 
     ranked.sort(
@@ -364,8 +413,8 @@ def _restaurant_matches_dietary(restaurant: dict, dietary_terms: list[str]) -> b
     return any(str(term).strip().lower() in searchable_text for term in dietary_terms)
 
 
-def _apply_hard_filters(restaurants: list[dict], filters: dict) -> list[dict]:
-    filtered = apply_filters(restaurants, filters)
+def apply_strict_filters(restaurants: list[dict], filters: dict) -> list[dict]:
+    filtered = _apply_base_hard_filters(restaurants, filters)
     filtered = _apply_borough_filter(filtered, filters.get("borough"))
 
     dietary = filters.get("dietary", [])
@@ -396,7 +445,6 @@ def _build_filter_stages(
     query_hard_filters = dict(explicit_hard_filters)
     soft_preferences: dict[str, object] = {
         "cuisines": adapted_filters.get("cuisines", []) if adapted_filters.get("explicit_cuisines") else [],
-        "cuisine": adapted_filters.get("cuisines", []) if adapted_filters.get("explicit_cuisines") else [],
         "dietary": adapted_filters.get("dietary", []) if adapted_filters.get("explicit_dietary") else [],
         "price": _first_filter_value(adapted_filters.get("price", [])) if adapted_filters.get("explicit_price") else None,
         "location": None,
@@ -405,9 +453,7 @@ def _build_filter_stages(
         "origin_lon": adapted_filters.get("origin_lon"),
         "nearby": False,
         "max_distance_km": adapted_filters.get("max_distance_km") if adapted_filters.get("explicit_max_distance") else None,
-        "occasion_vibe": [],
         "vibe": [],
-        "meal_context": [],
         "meal_type": None,
     }
 
@@ -453,25 +499,24 @@ def _build_filter_stages(
     parsed_cuisines = parsed_query.get("cuisine") or parsed_query.get("cuisines") or []
     if not adapted_filters.get("explicit_cuisines") and isinstance(parsed_cuisines, list):
         cleaned_cuisines = [str(item).strip().lower() for item in parsed_cuisines if str(item).strip()]
-        soft_preferences["cuisine"] = cleaned_cuisines
         soft_preferences["cuisines"] = cleaned_cuisines
 
     parsed_vibes = parsed_query.get("vibe") or parsed_query.get("occasion_vibe") or []
     if isinstance(parsed_vibes, list):
         cleaned_vibes = [str(item).strip().lower() for item in parsed_vibes if str(item).strip()]
         soft_preferences["vibe"] = cleaned_vibes
-        soft_preferences["occasion_vibe"] = cleaned_vibes
 
+    meal_types = []
     parsed_meal_context = parsed_query.get("meal_context") or []
     if isinstance(parsed_meal_context, list):
-        soft_preferences["meal_context"] = [
-            str(item).strip().lower()
-            for item in parsed_meal_context
-            if str(item).strip()
-        ]
+        meal_types.extend([str(item).strip().lower() for item in parsed_meal_context if str(item).strip()])
     parsed_meal_type = parsed_query.get("meal_type")
     if isinstance(parsed_meal_type, str) and parsed_meal_type.strip():
-        soft_preferences["meal_type"] = parsed_meal_type.strip().lower()
+        meal_types.append(parsed_meal_type.strip().lower())
+    
+    if meal_types:
+        # remove duplicates
+        soft_preferences["meal_type"] = list(dict.fromkeys(meal_types))
 
     place = parsed_query.get("in_near_place_filter")
     if isinstance(place, dict) and place.get("kind") == "borough" and place.get("borough"):
@@ -803,7 +848,8 @@ def search_restaurants(
     if use_recommendation_mode:
         if user_vector is None:
             fallback_restaurants = _get_restaurants()
-            explicit_fallback = _apply_hard_filters(fallback_restaurants, explicit_hard_filters)
+            explicit_fallback = apply_strict_filters(fallback_restaurants, explicit_hard_filters)
+            # Soft Fallback: Do not return 0 results due to hard constraints if possible
             fallback_pool = explicit_fallback if explicit_fallback else fallback_restaurants
             return _rank_by_location_and_rating(
                 restaurants=fallback_pool,
@@ -825,8 +871,9 @@ def search_restaurants(
     origin_lat = _safe_float(adapted_filters.get("origin_lat"), NYU_LAT)
     origin_lon = _safe_float(adapted_filters.get("origin_lon"), NYU_LON)
     candidate_restaurants = _with_distance_km([r for r, _ in candidates], origin_lat, origin_lon)
-    explicit_filtered = _apply_hard_filters(candidate_restaurants, explicit_hard_filters)
-    hard_filtered = _apply_hard_filters(explicit_filtered, query_hard_filters)
+    
+    explicit_filtered = apply_strict_filters(candidate_restaurants, explicit_hard_filters)
+    hard_filtered = apply_strict_filters(explicit_filtered, query_hard_filters)
 
     strict_in_near = isinstance(parsed_query, dict) and bool(parsed_query.get("in_near_place_filter"))
     if strict_in_near and isinstance(parsed_query, dict):
@@ -843,9 +890,12 @@ def search_restaurants(
                     float(radius_km) if isinstance(radius_km, (int, float)) else 1.6,
                 )
 
+    # Soft fallback logic: if strict query filters removed everything, relax them to rely on ranking soft boosts.
     ranking_pool = hard_filtered
     if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS and not strict_in_near:
-        ranking_pool = explicit_filtered if explicit_filtered else candidate_restaurants
+        ranking_pool = explicit_filtered
+        if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS:
+            ranking_pool = candidate_restaurants
 
     # Step 5: Rebuild (restaurant, score) tuples after filtering
     score_map = {
@@ -859,15 +909,14 @@ def search_restaurants(
         for restaurant in ranking_pool
     ]
 
-    # Step 6: rank candidates
+    # Step 6: Rank candidates based on fusion + soft boosts
     ranked = rank_candidates(
-        filtered_with_scores,
-        user_price_pref=str(soft_preferences.get("price") or "") or None,
+        candidates=filtered_with_scores,
         active_filters=soft_preferences,
+        top_k=requested_top_k,
     )
 
-    # Step 7: return top-k
-    return ranked[:requested_top_k]
+    return ranked
 
 
 def get_all_restaurants() -> list[dict]:

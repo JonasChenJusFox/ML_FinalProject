@@ -7,9 +7,7 @@ from typing import Any
 __all__ = [
 	"cosine_similarity",
 	"fuse_vectors",
-	"retrieve_top_clusters",
-	"filter_restaurants_by_clusters",
-	"rank_restaurants",
+	"rank_candidates",
 ]
 
 

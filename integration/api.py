@@ -525,61 +525,6 @@ def _build_filter_stages(
     return explicit_hard_filters, query_hard_filters, soft_preferences
 
 
-def _soft_match_score(restaurant: dict, soft_preferences: dict) -> float:
-    score = 0.0
-
-    soft_price = soft_preferences.get("price")
-    if isinstance(soft_price, str) and soft_price.strip():
-        restaurant_price = str(restaurant.get("price") or "").strip().lower()
-        if restaurant_price == soft_price.strip().lower():
-            score += 1.0
-
-    soft_borough = soft_preferences.get("borough")
-    if isinstance(soft_borough, str) and soft_borough.strip():
-        if str(restaurant.get("borough") or "").strip().lower() == soft_borough.strip().lower():
-            score += 1.0
-
-    searchable_parts: list[str] = []
-    for key in ("name", "embedding_text", "document"):
-        value = restaurant.get(key)
-        if isinstance(value, str) and value.strip():
-            searchable_parts.append(value.strip().lower())
-    for key in ("categories", "tags"):
-        values = restaurant.get(key, [])
-        if isinstance(values, list):
-            searchable_parts.extend(str(value).strip().lower() for value in values if str(value).strip())
-    searchable_text = " ".join(searchable_parts)
-
-    soft_location = soft_preferences.get("location")
-    if isinstance(soft_location, str) and soft_location.strip() and soft_location.strip().lower() in searchable_text:
-        score += 1.0
-
-    for key in ("occasion_vibe", "meal_context", "cuisines"):
-        values = soft_preferences.get(key, [])
-        if not isinstance(values, list):
-            continue
-        for value in values:
-            normalized = str(value).strip().lower().replace("_", " ")
-            if normalized and normalized in searchable_text:
-                score += 1.0
-
-    return score
-
-
-def _apply_soft_preference_filter(restaurants: list[dict], soft_preferences: dict) -> list[dict]:
-    if not restaurants:
-        return []
-
-    scored = [
-        (restaurant, _soft_match_score(restaurant, soft_preferences))
-        for restaurant in restaurants
-    ]
-    preferred = [restaurant for restaurant, score in scored if score > 0.0]
-    if len(preferred) >= SOFT_FILTER_MIN_RESULTS:
-        return preferred
-    return list(restaurants)
-
-
 def _build_user_embedding_if_available(user_id: str) -> list[float] | None:
     """Build a profile-based user embedding if the questionnaire/profile exists."""
     if not user_id or user_id == "anonymous":
@@ -793,10 +738,30 @@ def search_restaurants(
         Ordered list of restaurant dicts (best match first).
     """
     requested_top_k = max(1, int(top_k))
-
     query_text = (query or "").strip()
+    use_recommendation_mode = user_vector_only or not query_text
 
-    # Step 1: build profile and interaction vectors, then combine into one user vector
+    # Step 1: Parse explicit UI filters and query intents
+    adapted_filters = _adapt_filters(filters)
+    parsed_query = None
+    embedding_query_text = query_text
+
+    if not use_recommendation_mode:
+        parsed_query = parse_query(query_text)
+        embedding_query_text = minimal_clean_query(query_text)
+        adapted_filters = _merge_query_signals(adapted_filters, parsed_query)
+
+    # Step 2: Build Filter Stages (Hard constraints vs Soft boosts)
+    explicit_hard_filters, query_hard_filters, soft_preferences = _build_filter_stages(
+        adapted_filters,
+        parsed_query,
+    )
+
+    print("explicit_hard_filters:", explicit_hard_filters)
+    print("query_hard_filters:", query_hard_filters)
+    print("soft_preferences:", soft_preferences)
+
+    # Step 3: Build User Vector
     profile_vector = _build_user_embedding_if_available(user_id)
     interaction_vector = _build_interaction_vector(user_id)
     user_vector = _blend_vectors(
@@ -805,46 +770,8 @@ def search_restaurants(
         left_weight=PROFILE_VECTOR_WEIGHT,
         right_weight=INTERACTION_VECTOR_WEIGHT,
     )
-    adapted_filters = _adapt_filters(filters)
-    user_origin_provided = (
-        adapted_filters.get("origin_lat") is not None
-        and adapted_filters.get("origin_lon") is not None
-    )
 
-    # Mode split:
-    # - recommendation mode: empty query -> user vector only (or location fallback)
-    # - search mode: non-empty query -> parse query, then embed full query + fuse with user vector
-    use_recommendation_mode = user_vector_only or not query_text
-    parsed_query = None
-    embedding_query_text = query_text
-    explicit_hard_filters, query_hard_filters, soft_preferences = _build_filter_stages(
-        adapted_filters,
-        None,
-    )
-
-    if not use_recommendation_mode:
-        # Parse structured signals for filtering and ranking
-        parsed_query = parse_query(query_text)
-        # Use minimally cleaned full query for embedding to preserve semantic content
-        embedding_query_text = minimal_clean_query(query_text)
-        # Merge structured signals into filters
-        adapted_filters = _merge_query_signals(adapted_filters, parsed_query)
-        explicit_hard_filters, query_hard_filters, soft_preferences = _build_filter_stages(
-            adapted_filters,
-            parsed_query,
-        )
-
-    has_resolved_origin = (
-        adapted_filters.get("origin_lat") is not None
-        and adapted_filters.get("origin_lon") is not None
-    )
-    if user_origin_provided:
-        print("Using user-provided origin")
-    elif has_resolved_origin:
-        print("Using query-parsed origin")
-    else:
-        print("Using NYU fallback")
-
+    # Step 4: Recommendation Mode Fallback (No embedding available)
     if use_recommendation_mode:
         if user_vector is None:
             fallback_restaurants = _get_restaurants()
@@ -857,17 +784,20 @@ def search_restaurants(
                 top_k=requested_top_k,
             )
 
+    # Step 5: Embed Query and Fuse Vectors
+    if use_recommendation_mode:
         query_vector = [0.0] * len(user_vector)
         fused_vector = fuse_vectors(query_vector, user_vector, alpha=1.0)
     else:
         query_vector = embed_query(embedding_query_text)
         fused_vector = fuse_vectors(query_vector, user_vector, alpha=PERSONALIZATION_ALPHA)
 
-    # Step 3: retrieve semantic candidates (cluster-first, then within-cluster search)
+    # Step 6: Retrieve semantic candidates (fetch 3x needed to allow for filtering)
     candidates = _retrieve_candidates_cluster_first(fused_vector, k=requested_top_k * 3)
 
-    # Step 4: apply structured filters
-    # Extract origin coordinates from adapted_filters if available (set by _merge_query_signals)
+    print("before filter:", len(candidates))
+
+    # Step 7: Apply structured hard filters
     origin_lat = _safe_float(adapted_filters.get("origin_lat"), NYU_LAT)
     origin_lon = _safe_float(adapted_filters.get("origin_lon"), NYU_LON)
     candidate_restaurants = _with_distance_km([r for r, _ in candidates], origin_lat, origin_lon)
@@ -875,29 +805,48 @@ def search_restaurants(
     explicit_filtered = apply_strict_filters(candidate_restaurants, explicit_hard_filters)
     hard_filtered = apply_strict_filters(explicit_filtered, query_hard_filters)
 
+    print("after strict filter:", len(hard_filtered))
+    print("len(candidate_restaurants):", len(candidate_restaurants))
+    print("len(explicit_filtered):", len(explicit_filtered))
+    print("len(hard_filtered):", len(hard_filtered))
+
+    # Optional strict neighborhood radius boundary
     strict_in_near = isinstance(parsed_query, dict) and bool(parsed_query.get("in_near_place_filter"))
+    print("strict_in_near:", strict_in_near)
+    print("parsed_query:", parsed_query)
+    
     if strict_in_near and isinstance(parsed_query, dict):
         place = parsed_query.get("in_near_place_filter")
         if isinstance(place, dict) and place.get("kind") == "neighborhood":
             center_lat = place.get("lat")
             center_lon = place.get("lon")
-            radius_km = place.get("radius_km", 1.6)
+            # Default to 5.0 km
+            radius_km = place.get("radius_km", 5.0)
             if isinstance(center_lat, (int, float)) and isinstance(center_lon, (int, float)):
+                # Ensure minimum radius of 3.0 km
+                radius_km = max(float(radius_km) if isinstance(radius_km, (int, float)) else 5.0, 3.0)
+                
                 hard_filtered = _filter_within_radius_km(
                     hard_filtered,
                     float(center_lat),
                     float(center_lon),
-                    float(radius_km) if isinstance(radius_km, (int, float)) else 1.6,
+                    radius_km,
                 )
+                print("radius_km used:", radius_km)
 
-    # Soft fallback logic: if strict query filters removed everything, relax them to rely on ranking soft boosts.
+    print("len(after_radius_filter):", len(hard_filtered))
+    print("after radius filter:", len(hard_filtered))
+
+    # Soft fallback: if strict query filters removed everything, relax them to rely on ranking soft boosts.
     ranking_pool = hard_filtered
-    if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS and not strict_in_near:
+    if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS:
         ranking_pool = explicit_filtered
         if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS:
             ranking_pool = candidate_restaurants
 
-    # Step 5: Rebuild (restaurant, score) tuples after filtering
+    print("len(ranking_pool):", len(ranking_pool))
+
+    # Step 8: Rank Candidates (via soft boosts and fusion scores)
     score_map = {
         str(restaurant.get("business_id", "")): score
         for restaurant, score in candidates
@@ -909,12 +858,17 @@ def search_restaurants(
         for restaurant in ranking_pool
     ]
 
-    # Step 6: Rank candidates based on fusion + soft boosts
+    print("ranker input:", len(ranking_pool))
+
     ranked = rank_candidates(
         candidates=filtered_with_scores,
         active_filters=soft_preferences,
         top_k=requested_top_k,
     )
+
+    print("ranker output:", len(ranked))
+    print("requested_top_k:", requested_top_k)
+    print("final returned:", len(ranked))
 
     return ranked
 

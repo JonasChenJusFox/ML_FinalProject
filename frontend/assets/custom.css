@@ -720,6 +720,92 @@ div[role="dialog"] [data-testid="stVerticalBlock"] {
 }
 
 /* =========================================================
+   Onboarding questionnaire
+   ========================================================= */
+
+.nb-onboarding-anchor {
+  height: 1px;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stTextArea"] textarea {
+  border: 1px solid var(--nb-border) !important;
+  background: #fff !important;
+  border-radius: 8px !important;
+  padding: 0.7rem 0.8rem !important;
+  min-height: 108px;
+  line-height: 1.45;
+  font-size: 0.95rem;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stSelectbox"] > div > div,
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] > div > div,
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+  border-radius: 8px !important;
+  border: 1px solid var(--nb-border) !important;
+  background: #fff !important;
+  min-height: 42px;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stSelectbox"] [data-baseweb="select"],
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] [data-baseweb="select"] {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stSelectbox"] [data-baseweb="select"] *,
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stSelectbox"] [data-baseweb="select"] > div {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] [data-baseweb="tag"] {
+  border-radius: 999px !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: #f08a7e !important;
+  padding: 0.12rem 0.45rem !important;
+  min-height: 24px !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] [data-baseweb="tag"] span {
+  font-size: 0.82rem !important;
+  line-height: 1.2 !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] [data-baseweb="tag"] *,
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] [data-baseweb="tag"] > div {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 999px !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] [data-baseweb="tag"] button,
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] [data-baseweb="tag"] [role="button"] {
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  padding: 0 !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] [data-baseweb="tag"] svg {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stSelectbox"] [data-baseweb="select"]:focus-within > div,
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stMultiSelect"] [data-baseweb="select"]:focus-within > div,
+div[data-testid="stVerticalBlock"]:has(.nb-onboarding-anchor) [data-testid="stTextArea"] textarea:focus {
+  border-color: var(--nb-accent) !important;
+  box-shadow: 0 0 0 1px var(--nb-accent-soft) !important;
+}
+
+/* =========================================================
    Location bar
    ========================================================= */
 

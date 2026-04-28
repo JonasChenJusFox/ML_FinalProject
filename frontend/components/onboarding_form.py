@@ -123,6 +123,35 @@ def _safe_multiselect_defaults(options: list[str], selected: list[str]) -> list[
     return [item for item in selected if item in options]
 
 
+def _render_multi_choice(
+    label: str,
+    options: list[str],
+    default: list[str],
+    *,
+    key: str,
+) -> list[str]:
+    """
+    Render a cleaner multi-choice control. Use st.pills when available,
+    and fall back to st.multiselect for older Streamlit versions.
+    """
+    if hasattr(st, "pills"):
+        values = st.pills(
+            label,
+            options,
+            default=default,
+            selection_mode="multi",
+            key=key,
+        )
+        return list(values or [])
+
+    return st.multiselect(
+        label,
+        options,
+        default=default,
+        key=key,
+    )
+
+
 def render_onboarding_form() -> None:
     """
     Render the onboarding questionnaire with database-backed prefilled defaults.
@@ -166,20 +195,24 @@ def render_onboarding_form() -> None:
     default_frequent_restaurants = ", ".join(answers.get("frequent_restaurants", []))
     default_aspirational_restaurants = ", ".join(answers.get("aspirational_restaurants", []))
 
+    st.markdown("<div class='nb-onboarding-anchor'></div>", unsafe_allow_html=True)
     st.subheader("User Onboarding Questionnaire")
 
     with st.form("user_onboarding_form"):
-        top_cuisines = st.multiselect(
+        top_cuisines = _render_multi_choice(
             "What are your top 3 cuisines?",
-            CUISINES,
+            options=CUISINES,
             default=default_top_cuisines,
-            max_selections=3,
+            key="onboarding_top_cuisines",
         )
+        if len(top_cuisines) > 3:
+            st.warning("Please choose up to 3 cuisines.")
 
-        cravings = st.multiselect(
+        cravings = _render_multi_choice(
             "What kind of food are you most often craving?",
-            CRAVINGS,
+            options=CRAVINGS,
             default=default_cravings,
+            key="onboarding_cravings",
         )
 
         price_range = st.selectbox(
@@ -188,16 +221,18 @@ def render_onboarding_form() -> None:
             index=_safe_index(["$", "$$", "$$$", "$$$$"], default_price_range, default_index=1),
         )
 
-        vibes = st.multiselect(
+        vibes = _render_multi_choice(
             "Which vibes match your usual dining style?",
-            VIBES,
+            options=VIBES,
             default=default_vibes,
+            key="onboarding_vibes",
         )
 
-        dietary = st.multiselect(
+        dietary = _render_multi_choice(
             "Any dietary restrictions or preferences?",
-            DIETARY,
+            options=DIETARY,
             default=default_dietary,
+            key="onboarding_dietary",
         )
 
         adventurousness = st.slider(
@@ -220,16 +255,18 @@ def render_onboarding_form() -> None:
             index=_safe_index(DINING_COMPANY_OPTIONS, default_dining_company, default_index=2),
         )
 
-        meals = st.multiselect(
+        meals = _render_multi_choice(
             "What meals do you usually go out for?",
-            MEALS,
+            options=MEALS,
             default=default_meals,
+            key="onboarding_meals",
         )
 
-        decision_style = st.multiselect(
+        decision_style = _render_multi_choice(
             "How do you usually choose restaurants?",
-            DECISION_STYLE,
+            options=DECISION_STYLE,
             default=default_decision_style,
+            key="onboarding_decision_style",
         )
 
         novelty_preference = st.radio(
@@ -271,6 +308,9 @@ def render_onboarding_form() -> None:
         submitted = st.form_submit_button("Save profile", use_container_width=True)
 
         if submitted:
+            if len(top_cuisines) > 3:
+                st.error("You can select at most 3 cuisines.")
+                st.stop()
             payload = {
                 "top_cuisines": top_cuisines,
                 "craving_preferences": cravings,
@@ -293,5 +333,6 @@ def render_onboarding_form() -> None:
             save_questionnaire_answers(payload)
             st.success("Profile saved.")
             st.session_state.editing_questionnaire = False
+            st.session_state.show_post_signup_questionnaire = False
             st.session_state.page = "Profile"
             st.rerun()

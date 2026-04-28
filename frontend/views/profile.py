@@ -16,7 +16,6 @@ import streamlit as st
 
 from frontend.adapters import normalize_results
 from frontend.auth import open_login_modal, open_signup_modal
-from frontend.components.onboarding_form import render_onboarding_form
 from frontend.components.empty_state import render_empty_state
 from frontend.components.restaurant_card import render_restaurant_card
 from frontend.user_profile_state import get_questionnaire_answers
@@ -136,7 +135,7 @@ def render_profile(restaurants: list[dict]) -> None:
         onboarding_completed = st.session_state.get("onboarding_completed", False)
         questionnaire_label = "Edit questionnaire" if onboarding_completed else "Complete questionnaire"
         if st.button(questionnaire_label, key="profile_edit_questionnaire", use_container_width=True):
-            st.session_state.editing_questionnaire = True
+            st.session_state.show_post_signup_questionnaire = True
             st.rerun()
 
         current_answers = get_questionnaire_answers()
@@ -144,22 +143,6 @@ def render_profile(restaurants: list[dict]) -> None:
         meals_preview = ", ".join(current_answers.get("typical_meals", [])[:3]) or "Not set yet"
         st.caption(f"Top cuisines: {cuisines_preview}")
         st.caption(f"Typical meals: {meals_preview}")
-
-    post_signup_dialog_open = st.session_state.get("show_post_signup_questionnaire", False)
-    show_questionnaire_section = (
-        st.session_state.get("editing_questionnaire", False)
-        or not st.session_state.get("onboarding_completed", False)
-    ) and not post_signup_dialog_open
-
-    if show_questionnaire_section:
-        st.markdown(
-            "<div class='nb-section-title'>Questionnaire</div>",
-            unsafe_allow_html=True,
-        )
-        if not st.session_state.get("onboarding_completed", False):
-            st.caption("Tell us a bit about your taste so Home and Discover can personalize results.")
-        render_onboarding_form()
-        st.divider()
 
     st.markdown(
         "<div class='nb-section-title'>Your interactions</div>",

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from frontend.components.dialog_gate import can_open_dialog
 from frontend.components.map_view import clear_discover_map_pin_selection
 from frontend.components.restaurant_card import render_restaurant_card
 
@@ -16,6 +17,8 @@ from frontend.components.restaurant_card import render_restaurant_card
 def render_restaurant_profile_dialog(restaurants: list[dict]) -> None:
     business_id = st.session_state.get("restaurant_profile_business_id")
     if not business_id:
+        return
+    if not can_open_dialog("restaurant_profile_dialog"):
         return
 
     item = next((r for r in restaurants if r.get("business_id") == business_id), None)

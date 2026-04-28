@@ -14,10 +14,13 @@ from __future__ import annotations
 import streamlit as st
 
 from frontend.auth import close_signup_modal, open_login_modal, signup
+from frontend.components.dialog_gate import can_open_dialog
 
 
 def render_signup_modal() -> None:
     if not st.session_state.get("show_signup_modal", False):
+        return
+    if not can_open_dialog("signup_modal"):
         return
 
     @st.dialog("Sign up")

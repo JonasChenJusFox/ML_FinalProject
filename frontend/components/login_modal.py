@@ -19,10 +19,13 @@ from frontend.auth import (
     open_forgot_password_modal,
     open_signup_modal,
 )
+from frontend.components.dialog_gate import can_open_dialog
 
 
 def render_login_modal() -> None:
     if not st.session_state.get("show_login_modal", False):
+        return
+    if not can_open_dialog("login_modal"):
         return
 
     @st.dialog("Log in")

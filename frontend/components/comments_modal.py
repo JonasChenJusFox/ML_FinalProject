@@ -16,6 +16,7 @@ import html
 import streamlit as st
 
 from frontend.adapters import clean_text
+from frontend.components.dialog_gate import can_open_dialog
 
 
 def init_comments_modal_state() -> None:
@@ -45,6 +46,8 @@ def render_comments_modal() -> None:
     init_comments_modal_state()
 
     if not st.session_state.get("show_comments_modal", False):
+        return
+    if not can_open_dialog("comments_modal"):
         return
 
     @st.dialog("Comments")

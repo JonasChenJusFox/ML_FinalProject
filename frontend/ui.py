@@ -20,6 +20,7 @@ import streamlit as st
 from frontend.adapters import get_filter_options
 from frontend.auth import init_auth_state
 from frontend.components.comments_modal import render_comments_modal
+from frontend.components.dialog_gate import can_open_dialog, reset_dialog_gate
 from frontend.components.forgot_password_modal import render_forgot_password_modal
 from frontend.components.login_modal import render_login_modal
 from frontend.components.nav import render_nav
@@ -49,6 +50,8 @@ def _init_help_state() -> None:
 def _render_help_dialog() -> None:
     if not st.session_state.get("show_help_dialog", False):
         return
+    if not can_open_dialog("help_dialog"):
+        return
 
     @st.dialog("How NearBite works")
     def _dialog() -> None:
@@ -71,6 +74,7 @@ def render_app(search_callable: Callable | None, preview_restaurants: list[dict]
     init_auth_state()
     init_user_profile_state()
     _init_help_state()
+    reset_dialog_gate()
 
     st.session_state.preview_restaurants = (
         preview_restaurants or st.session_state.get("preview_restaurants", [])

@@ -30,6 +30,23 @@ CUISINES = [
     "American / Burgers",
     "Mediterranean / Middle Eastern",
     "Vietnamese",
+    "French",
+    "Spanish",
+    "Greek",
+    "Turkish",
+    "Lebanese",
+    "Ethiopian",
+    "Caribbean",
+    "Peruvian",
+    "Brazilian",
+    "African",
+    "Seafood",
+    "Steakhouse",
+    "Sushi",
+    "Ramen",
+    "Pizza",
+    "Dessert / Bakery",
+    "Cafe / Coffee",
     "Other",
 ]
 
@@ -40,6 +57,12 @@ CRAVINGS = [
     "sweet/dessert",
     "fast/casual",
     "fancy/experimental",
+    "savory",
+    "healthy",
+    "protein-heavy",
+    "vegetable-forward",
+    "soup/noodles",
+    "rice bowls",
 ]
 VIBES = [
     "cozy / intimate",
@@ -50,6 +73,12 @@ VIBES = [
     "quick bite / grab-and-go",
     "outdoor / terrace",
     "late night",
+    "family-friendly",
+    "group-friendly",
+    "romantic",
+    "trendy",
+    "classic",
+    "music / nightlife",
 ]
 
 DIETARY = [
@@ -61,6 +90,12 @@ DIETARY = [
     "Gluten-free",
     "Nut allergy",
     "Dairy-free",
+    "Pescatarian",
+    "Low-carb",
+    "Low-sodium",
+    "Keto-friendly",
+    "No beef",
+    "No pork",
 ]
 
 MEALS = [
@@ -69,14 +104,20 @@ MEALS = [
     "lunch",
     "dinner",
     "late night",
+    "coffee/snack",
+    "dessert",
 ]
 
 DECISION_STYLE = [
     "ratings",
-    "review",
+    "reviews",
     "vibe/atmosphere",
     "convenience",
     "recommendations",
+    "price",
+    "distance",
+    "friend suggestions",
+    "social media buzz",
 ]
 
 TRAVEL_WILLINGNESS_OPTIONS = [
@@ -123,6 +164,17 @@ def _safe_multiselect_defaults(options: list[str], selected: list[str]) -> list[
     return [item for item in selected if item in options]
 
 
+def _merge_options_with_existing(options: list[str], selected: list[str]) -> list[str]:
+    """
+    Preserve previously saved custom values even if not in the base options.
+    """
+    merged = list(options)
+    for item in selected:
+        if item not in merged:
+            merged.append(item)
+    return merged
+
+
 def _render_multi_choice(
     label: str,
     options: list[str],
@@ -131,19 +183,11 @@ def _render_multi_choice(
     key: str,
 ) -> list[str]:
     """
-    Render a cleaner multi-choice control. Use st.pills when available,
-    and fall back to st.multiselect for older Streamlit versions.
-    """
-    if hasattr(st, "pills"):
-        values = st.pills(
-            label,
-            options,
-            default=default,
-            selection_mode="multi",
-            key=key,
-        )
-        return list(values or [])
+    Render a reliable multi-choice control.
 
+    NOTE: We intentionally use multiselect here (instead of pills) because
+    pills can be inconsistent in some Streamlit versions inside forms/dialogs.
+    """
     return st.multiselect(
         label,
         options,
@@ -158,30 +202,26 @@ def render_onboarding_form() -> None:
     """
     answers = get_questionnaire_answers()
 
-    default_top_cuisines = _safe_multiselect_defaults(
-        CUISINES,
-        answers.get("top_cuisines", []),
-    )
-    default_cravings = _safe_multiselect_defaults(
-        CRAVINGS,
-        answers.get("craving_preferences", []),
-    )
-    default_vibes = _safe_multiselect_defaults(
-        VIBES,
-        answers.get("vibes_dining_style", []),
-    )
-    default_dietary = _safe_multiselect_defaults(
-        DIETARY,
-        answers.get("dietary_restrictions", []),
-    )
-    default_meals = _safe_multiselect_defaults(
-        MEALS,
-        answers.get("typical_meals", []),
-    )
-    default_decision_style = _safe_multiselect_defaults(
-        DECISION_STYLE,
-        answers.get("decision_criteria", []),
-    )
+    saved_top_cuisines = answers.get("top_cuisines", [])
+    saved_cravings = answers.get("craving_preferences", [])
+    saved_vibes = answers.get("vibes_dining_style", [])
+    saved_dietary = answers.get("dietary_restrictions", [])
+    saved_meals = answers.get("typical_meals", [])
+    saved_decision_style = answers.get("decision_criteria", [])
+
+    cuisine_options = _merge_options_with_existing(CUISINES, saved_top_cuisines)
+    craving_options = _merge_options_with_existing(CRAVINGS, saved_cravings)
+    vibe_options = _merge_options_with_existing(VIBES, saved_vibes)
+    dietary_options = _merge_options_with_existing(DIETARY, saved_dietary)
+    meal_options = _merge_options_with_existing(MEALS, saved_meals)
+    decision_options = _merge_options_with_existing(DECISION_STYLE, saved_decision_style)
+
+    default_top_cuisines = _safe_multiselect_defaults(cuisine_options, saved_top_cuisines)
+    default_cravings = _safe_multiselect_defaults(craving_options, saved_cravings)
+    default_vibes = _safe_multiselect_defaults(vibe_options, saved_vibes)
+    default_dietary = _safe_multiselect_defaults(dietary_options, saved_dietary)
+    default_meals = _safe_multiselect_defaults(meal_options, saved_meals)
+    default_decision_style = _safe_multiselect_defaults(decision_options, saved_decision_style)
 
     default_price_range = answers.get("price_comfort_level", "$$")
     default_travel = answers.get("travel_willingness", "Short commute (10–20 min / ~1 mi)")
@@ -201,7 +241,7 @@ def render_onboarding_form() -> None:
     with st.form("user_onboarding_form"):
         top_cuisines = _render_multi_choice(
             "What are your top 3 cuisines?",
-            options=CUISINES,
+            options=cuisine_options,
             default=default_top_cuisines,
             key="onboarding_top_cuisines",
         )
@@ -210,9 +250,15 @@ def render_onboarding_form() -> None:
 
         cravings = _render_multi_choice(
             "What kind of food are you most often craving?",
-            options=CRAVINGS,
+            options=craving_options,
             default=default_cravings,
             key="onboarding_cravings",
+        )
+
+        extra_cravings_raw = st.text_input(
+            "Other cravings (optional, comma-separated)",
+            value="",
+            placeholder="brothy, smoky, crunchy",
         )
 
         price_range = st.selectbox(
@@ -223,16 +269,28 @@ def render_onboarding_form() -> None:
 
         vibes = _render_multi_choice(
             "Which vibes match your usual dining style?",
-            options=VIBES,
+            options=vibe_options,
             default=default_vibes,
             key="onboarding_vibes",
         )
 
+        extra_vibes_raw = st.text_input(
+            "Other vibes (optional, comma-separated)",
+            value="",
+            placeholder="minimalist, scenic, speakeasy",
+        )
+
         dietary = _render_multi_choice(
             "Any dietary restrictions or preferences?",
-            options=DIETARY,
+            options=dietary_options,
             default=default_dietary,
             key="onboarding_dietary",
+        )
+
+        extra_dietary_raw = st.text_input(
+            "Other dietary preferences (optional, comma-separated)",
+            value="",
+            placeholder="shellfish allergy, low sugar",
         )
 
         adventurousness = st.slider(
@@ -257,16 +315,28 @@ def render_onboarding_form() -> None:
 
         meals = _render_multi_choice(
             "What meals do you usually go out for?",
-            options=MEALS,
+            options=meal_options,
             default=default_meals,
             key="onboarding_meals",
         )
 
+        extra_meals_raw = st.text_input(
+            "Other meal contexts (optional, comma-separated)",
+            value="",
+            placeholder="post-workout, after class",
+        )
+
         decision_style = _render_multi_choice(
             "How do you usually choose restaurants?",
-            options=DECISION_STYLE,
+            options=decision_options,
             default=default_decision_style,
             key="onboarding_decision_style",
+        )
+
+        extra_decision_style_raw = st.text_input(
+            "Other decision factors (optional, comma-separated)",
+            value="",
+            placeholder="wait time, reservation availability",
         )
 
         novelty_preference = st.radio(
@@ -311,17 +381,24 @@ def render_onboarding_form() -> None:
             if len(top_cuisines) > 3:
                 st.error("You can select at most 3 cuisines.")
                 st.stop()
+
+            extra_cravings = parse_comma_tags(extra_cravings_raw)
+            extra_vibes = parse_comma_tags(extra_vibes_raw)
+            extra_dietary = parse_comma_tags(extra_dietary_raw)
+            extra_meals = parse_comma_tags(extra_meals_raw)
+            extra_decision_style = parse_comma_tags(extra_decision_style_raw)
+
             payload = {
                 "top_cuisines": top_cuisines,
-                "craving_preferences": cravings,
+                "craving_preferences": list(dict.fromkeys(cravings + extra_cravings)),
                 "price_comfort_level": price_range,
-                "vibes_dining_style": vibes,
-                "dietary_restrictions": dietary,
+                "vibes_dining_style": list(dict.fromkeys(vibes + extra_vibes)),
+                "dietary_restrictions": list(dict.fromkeys(dietary + extra_dietary)),
                 "adventurousness": adventurousness,
                 "travel_willingness": travel_willingness,
                 "dining_company": dining_company,
-                "typical_meals": meals,
-                "decision_criteria": decision_style,
+                "typical_meals": list(dict.fromkeys(meals + extra_meals)),
+                "decision_criteria": list(dict.fromkeys(decision_style + extra_decision_style)),
                 "novelty_preference": novelty_preference,
                 "favorite_dishes": parse_comma_tags(favorite_dishes_raw),
                 "loved_restaurants": parse_comma_tags(loved_restaurants_raw),

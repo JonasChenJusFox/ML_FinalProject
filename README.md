@@ -1,239 +1,420 @@
-# NearBite — Current Pipeline and Runtime Guide
+# NearBite
 
-This README documents how the project actually works in the current codebase.
-It is intentionally explicit so integration behavior is unambiguous.
+NearBite is a Streamlit application for NYC restaurant discovery with semantic retrieval, hard constraints, and personalized ranking.  
+This README is an implementation-accurate, deep technical guide to the current pipeline.
 
-## What this app is
+## Table of contents
 
-NearBite is a Streamlit app for NYC restaurant discovery with:
-- semantic retrieval for query-driven search,
-- structured filtering,
-- ranking,
-- profile/recommendation pages backed by MongoDB.
+- System overview
+- Project structure
+- Environment and startup
+- End-to-end request lifecycle
+- Query parsing and intent extraction
+- Filter model (explicit hard vs query hard vs soft preferences)
+- Personalization model (profile + interactions)
+- Retrieval model (cluster-first with fallback)
+- Ranking model and score composition
+- Data contracts and schemas
+- State and page behavior
+- Caching, performance, and failure behavior
+- Debugging and validation
+- Security and production considerations
+- Extension points
 
-Main entrypoint: `app.py`.
+## System overview
 
-## Mandatory setup (before running)
+At a high level, search flow is:
 
-### 1) Create a virtual environment and install dependencies
+`user query + UI filters + user history -> parse -> vector build -> candidate retrieval -> hard filter -> rank -> display`
+
+Core design principles in the current implementation:
+
+- Keep semantic retrieval always active in Discover.
+- Treat user-entered filter controls as strict when explicit.
+- Treat parsed intent hints as soft unless they are clearly explicit constraints.
+- Preserve query semantics during embedding (minimal cleaning only).
+- Degrade gracefully: no Mongo, no cluster artifacts, or no user vector should not break search.
+
+## Project structure
+
+Primary modules involved in runtime search:
+
+- `app.py`: app bootstrap and page configuration.
+- `frontend/ui.py`: shell router, global dialogs, and page rendering.
+- `frontend/views/discover.py`: query UX, advanced filters, map/cards, backend call.
+- `integration/api.py`: orchestration layer for parse/retrieve/filter/rank.
+- `embeddings/query_parser.py`: deterministic text signal extraction.
+- `embeddings/vectorizer.py`: embedding model and vector utility functions.
+- `embeddings/cluster_retrieval.py`: cluster-level candidate retrieval from prebuilt assets.
+- `recommendation/ranker.py`: score calculation and weighted preference boosts.
+- `data/pipeline.py`: restaurant loading and interaction loading.
+- `integration/db.py`: Mongo initialization with local JSON fallback.
+- `integration/user_repo.py`: account/profile storage and embedding cache updates.
+
+## Environment and startup
+
+### Python environment
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-pip install -U pip
+python -m pip install --upgrade pip
 pip install -r requirements.txt
-pip install streamlit-geolocation
 ```
 
-`streamlit-geolocation` is currently used by Discover but is not listed in `requirements.txt`.
-
-### 2) Configure environment variables
-
-Create `.env` from `env.example` and set:
+### Optional environment variables
 
 ```bash
 MONGO_URI=...
 MONGO_DBNAME=NearBite
 ```
 
-`MONGO_URI` is required at import time by `integration/db.py`; the app can fail to start without it.
+Behavior:
 
-### 3) Run app
+- If Mongo is reachable, collections are backed by MongoDB.
+- If Mongo is unavailable or not configured, app falls back to `data/local_db.json`.
+
+### Run
 
 ```bash
 streamlit run app.py
 ```
 
-## Data and artifacts used at runtime
+## End-to-end request lifecycle
 
-### Required restaurant dataset
-- `data/restaurants.json`
+Search entrypoint: `integration/api.py::search_restaurants`.
 
-### Precomputed embedding artifacts (recommended and currently supported)
-- `data/restaurant_embeddings.json`
-- `data/cluster_centroids.json`
+Sequence for Discover (`user_vector_only=False`):
 
-Cluster-first retrieval uses these files when present.
+1. Adapt frontend filter payload to canonical backend fields.
+2. Parse query text into deterministic intent signals.
+3. Build explicit/query hard filter stages and soft preference stage.
+4. Build user vector (profile + interactions) when available.
+5. Embed the query and fuse query/user vectors.
+6. Retrieve candidate restaurants (cluster-first, then global fallback).
+7. Add distance/travel metadata from active origin.
+8. Apply hard filters.
+9. Apply soft fallback when hard filters are too restrictive.
+10. Rank candidates using semantic + structured + soft boosts.
+11. Return top-k sorted results with scoring metadata.
 
-If you need to regenerate artifacts:
+## Query parsing and intent extraction
 
-```bash
-python -m embeddings.build_index --input data/restaurants.json --k 20
-```
+Parser: `embeddings/query_parser.py::parse_query`.
 
-First model use may download SentenceTransformer weights.
+Signals extracted:
 
-## Actual page behavior
+- Price intent (`cheap`, `moderate`, `expensive`, `luxury`, etc.).
+- Dietary terms (`vegan`, `vegetarian`, `halal`, `kosher`, `gluten-free`).
+- Cuisine terms (`ramen`, `thai`, `italian`, etc.).
+- Occasion/vibe terms (`date_night`, `cozy`, `lively`, etc.).
+- Meal context (`lunch`, `dinner`, `late_night`, etc.).
+- Location cues:
+  - direct labels (`NYU`, boroughs, neighborhoods),
+  - zip code,
+  - `in <place>` and `near <place>` strict-place detection.
+- Distance-time intent (`under 20 minutes`, `within 3 km`, `near me`).
 
-### Home
-- collects search text and navigates to Discover.
+Important detail:
 
-### Discover (important)
+- `minimal_clean_query` intentionally does **not** strip semantic tokens; it only normalizes whitespace.
+- This preserves user intent for embedding similarity.
 
-Discover now calls backend search via `integration.api.search_restaurants(...)`.
+## Filter model
 
-Two modes are used intentionally:
+Filter adaptation is handled by `integration/api.py::_adapt_filters`.
 
-1. **Anonymous user (`user_id = "anonymous"`)**
-   - query-driven semantic mode (`user_vector_only = False`)
-   - flow: query embedding -> retrieval -> filters -> ranking.
+### Canonical fields
 
-2. **Logged-in user**
-   - user-vector mode (`user_vector_only = True`)
-   - if user vector exists: blank query vector + user vector fusion (`alpha=1.0`)
-   - if user vector missing: fallback ranking by location + rating.
+Adapted filter payload can include:
 
-### Profile / Recommendation
-- use Mongo-backed profile, saved restaurants, wrapped stats, and questionnaire-based recommendation UI.
-
-## Backend search pipeline (current implementation)
-
-Entrypoint: `integration/api.py::search_restaurants`
-
-### Standard semantic mode (`user_vector_only=False`)
-1. Build optional user vector (if user interaction data exists).
-2. Embed query using `embeddings/vectorizer.py::embed_query`.
-3. Fuse query + user vectors (`recommendation/ranker.py::fuse_vectors`, `alpha=0.3`).
-4. Retrieve candidates with **cluster-first retrieval**:
-   - load `restaurant_embeddings.json` + `cluster_centroids.json`,
-   - find nearest clusters,
-   - search within selected clusters,
-   - fallback to global top-k if cluster artifacts unavailable.
-5. Apply structured filters (`recommendation/ranker.py::apply_filters`) plus borough filter.
-6. Rank candidates (`recommendation/ranker.py::rank_candidates`).
-7. Return top-k (default 20).
-
-### User-vector-only mode (`user_vector_only=True`)
-1. Try user vector from user interactions.
-2. If available: use zero query vector, fuse with `alpha=1.0`, retrieve/filter/rank.
-3. If unavailable: fallback to location+rating ranking (still filtered), return top-k.
-
-## Filter contract
-
-Frontend Discover state uses keys like:
-- `discover_categories`
-- `discover_prices`
-- `discover_min_rating`
-- `discover_radius_minutes`
-- `discover_borough`
-
-Backend adapts these into ranker schema in `integration/api.py::_adapt_filters`:
 - `cuisines`
 - `price`
 - `min_rating`
 - `max_distance_km`
 - `borough`
+- `origin_lat`, `origin_lon`
+- `dietary`
+- `strict_dietary`
+- explicitness booleans (`explicit_cuisines`, `explicit_price`, etc.)
 
-## Key modules (current roles)
+### Three-stage filter strategy
 
-- `app.py`: Streamlit app bootstrap.
-- `frontend/views/discover.py`: collects Discover inputs and calls backend search.
-- `integration/api.py`: backend orchestration and retrieval strategy selection.
-- `embeddings/vectorizer.py`: embedding model + cosine + global top-k utilities.
-- `embeddings/cluster_retrieval.py`: nearest-cluster + within-cluster candidate retrieval.
-- `recommendation/ranker.py`: filtering, fusion, ranking functions.
-- `data/pipeline.py`: local restaurant loading and optional local user interactions.
+Built by `_build_filter_stages`:
 
-## Known runtime notes
+1. `explicit_hard_filters`
+   - only constraints explicitly set in UI.
+2. `query_hard_filters`
+   - starts from explicit filters and adds strict parsed constraints (e.g., hard borough from `in manhattan`).
+3. `soft_preferences`
+   - parsed hints used as ranking boosts (not immediate exclusions), including cuisine, dietary, location, vibe, meal type, and price hints.
 
-- First semantic request can be slower if model weights are not cached yet.
-- Anonymous Discover should now be query-sensitive.
-- Logged-in Discover may ignore raw query by design when user-vector-only mode is active.
-- Search does not require database-backed user history; it gracefully falls back when unavailable.
+### Why this split exists
 
-## Quick sanity checks
+The split avoids over-pruning results due to aggressive parser assumptions while still honoring explicit user controls.
+
+## Personalization model
+
+Personalization vectors are built in `integration/api.py`:
+
+- Profile vector: generated from questionnaire-derived `profile_text` via `embed_user`, cached in profile as `latest_embedding`.
+- Interaction vector: weighted average of embeddings for interacted businesses.
+
+Interaction weights:
+
+- `save`: `1.0`
+- `like`: `1.5`
+- `review/love`: `2.0`
+- `review/neutral`: `0.5`
+- `review/hate`: `0.0`
+
+Blending:
+
+- `PROFILE_VECTOR_WEIGHT = 0.7`
+- `INTERACTION_VECTOR_WEIGHT = 0.3`
+
+Final user vector is L2-normalized. Missing components degrade gracefully.
+
+## Retrieval model
+
+Primary retrieval method: cluster-first.
+
+### Cluster-first path
+
+Uses:
+
+- `data/restaurant_embeddings.json`
+- `data/cluster_centroids.json`
+
+Flow:
+
+1. Load centroids and indexed embeddings.
+2. Compute similarity between fused query vector and centroids.
+3. Select nearest clusters.
+4. Score items inside selected clusters.
+5. Map `business_id` back to full restaurant records.
+
+### Fallback path
+
+If cluster assets are missing or fail to load:
+
+- Build in-memory index from `data/restaurants.json` (or pre-existing embedded vectors).
+- Retrieve global top-k via `retrieve_top_k`.
+
+Candidate pool size is widened to roughly `top_k * 3` before filtering to preserve headroom.
+
+## Hard filtering and fallback behavior
+
+After retrieval, candidates are enriched with:
+
+- `distance_km` (Manhattan-style approximation),
+- `travel_minutes` (based on 5 km/h walking speed).
+
+Hard filtering sequence:
+
+1. `explicit_hard_filters`
+2. `query_hard_filters`
+3. Optional strict neighborhood radius clamp for parsed `in/near <neighborhood>` signals.
+
+If output count is too small:
+
+- fallback to explicit-filtered pool,
+- then fallback to full candidate pool.
+
+This prevents empty results from over-constrained parsing while preserving strongest constraints first.
+
+## Ranking model and score composition
+
+Ranker: `recommendation/ranker.py::rank_candidates`.
+
+### Base score components
+
+Default normalized component weights:
+
+- `semantic`: `0.60`
+- `rating`: `0.10`
+- `popularity`: `0.05`
+- `price_match`: `0.05`
+- `distance`: `0.20`
+
+Component definitions:
+
+- Semantic: cosine similarity from retrieval stage.
+- Rating: normalized from 0-5 to 0-1.
+- Popularity: bounded log transform of review count.
+- Price match: discrete compatibility score between user preference and restaurant price band.
+- Distance: proximity score (closer is better).
+
+### Soft preference boosts
+
+Additional weighted boosts are applied for:
+
+- dietary
+- location
+- cuisine
+- price
+- vibe
+- meal type
+
+Boost weights (separate from base score weights):
+
+- dietary `0.80`
+- cuisine `0.40`
+- location `0.25`
+- price `0.15`
+- vibe `0.10`
+- meal type `0.10`
+
+Final outputs per restaurant include:
+
+- `semantic_score`
+- `final_score`
+- `score_breakdown`
+- `soft_preference_boost`
+- `dietary_match_boost`
+
+## Data contracts and schemas
+
+### Restaurant record (runtime expectation)
+
+Typical fields used across modules:
+
+- `business_id` (string)
+- `name` (string)
+- `rating` (float)
+- `review_count` (int)
+- `price` (string like `$`, `$$`, `$$$`)
+- `categories` (list[str] or list[dict])
+- `latitude`, `longitude` or `coordinates`
+- `borough`, `neighborhood`
+- `embedding_text` (string used for semantic embedding)
+- optional `embedding` (list[float])
+
+### User profile record
+
+Stored in `user_profiles`:
+
+- `username`
+- `raw_answers`
+- `normalized_features`
+- `profile_text`
+- `latest_embedding`:
+  - `vector`
+  - `model_name`
+  - `updated_at`
+
+### User interaction record
+
+Expected normalized fields:
+
+- `user_id`
+- `business_id`
+- `interaction_type` (`save`, `like`, `review`)
+- `review_signal` (`love`, `neutral`, `hate`) for review records
+- `timestamp`
+
+## State and page behavior
+
+### Discover behavior
+
+`frontend/views/discover.py`:
+
+- always uses `search_restaurants(..., user_vector_only=False)`,
+- submits query and filters from session state,
+- tracks visible results incrementally,
+- resets map focus when result signature changes.
+
+Advanced filter controls are optional; query-first flow remains primary.
+
+### Profile behavior
+
+`frontend/views/profile.py`:
+
+- requires login,
+- renders wrapped summary and interaction-linked restaurants,
+- exposes questionnaire edit action,
+- reads profile/interactions from repo layer.
+
+## Caching, performance, and failure behavior
+
+### Caching
+
+`integration/api.py` keeps module-level caches for:
+
+- full restaurant list,
+- global embedding index,
+- cluster assets (index + centroids).
+
+### Performance characteristics
+
+- First request can be slower due to model load/download.
+- Cluster assets substantially reduce retrieval search scope.
+- Candidate oversampling (`top_k * 3`) improves final ranking quality under strict filters.
+
+### Failure behavior (graceful degradation)
+
+- No Mongo: local JSON db fallback.
+- No cluster artifacts: global retrieval fallback.
+- No user vector: query-only retrieval/ranking still works.
+- No interactions/profile: personalization path is skipped without breaking search.
+
+## Debugging and validation
+
+### Fast sanity checks
 
 ```bash
-python -c "from integration.api import search_restaurants; r=search_restaurants('spicy thai noodles', {'discover_min_rating':4.0}, user_id='anonymous', top_k=5); print(len(r), [x.get('name') for x in r[:3]])"
+python -c "from integration.api import search_restaurants; r=search_restaurants('cheap spicy ramen near nyu', {'discover_borough':'All'}, user_id='anonymous', top_k=5); print(len(r), [x.get('name') for x in r[:3]])"
 ```
 
-If this returns results, backend search path is functioning.
+```bash
+python -m embeddings.cluster_retrieval --query 'cozy japanese spot' --k 5
+```
 
-## Testing and Evaluation
+### Pipeline diagnostics to inspect
 
-This project should be tested around **inferred query intent**, not around users manually selecting filters.
-The practical target is:
+When debugging ranking/retrieval regressions, verify:
 
-`user query -> inferred constraints -> candidate retrieval -> ranking -> final results`
+- parsed query object,
+- explicit vs query hard filter payloads,
+- candidate count pre-filter and post-filter,
+- ranking pool size after fallback,
+- top result `score_breakdown`.
 
-### 1) Unit / Component testing
+## Security and production considerations
 
-Focus on query understanding and parsed attributes first, since these drive downstream behavior.
+Current implementation includes development-oriented shortcuts:
 
-Example query:
-- `cheap spicy ramen near NYU`
+- passwords are stored in plain text in user records,
+- no explicit rate limiting,
+- no audit trail or role model.
 
-Expected inferred signals:
-- price intent: `cheap`
-- food/cuisine intent: `ramen`, `spicy`
-- location intent: `near NYU`
+Before production deployment:
 
-For debugging, log/print parsed query attributes before retrieval and ranking.
-At minimum, print a compact object per query with inferred price, cuisine/food, location, vibe/context, and dietary signals.
+- add password hashing (e.g., bcrypt/argon2),
+- add auth/session hardening,
+- add secure secrets management and TLS validation policies,
+- add observability for ranking and retrieval quality metrics.
 
-Suggested mini test table (can be expanded into test fixtures):
+## Extension points
 
-| Query | Expected price intent | Expected food/cuisine intent | Expected location intent | Notes |
-|---|---|---|---|---|
-| `cheap spicy ramen near NYU` | cheap | ramen, spicy | near NYU | baseline query-understanding check |
-| `date night italian in west village` | medium-high (or unspecified) | italian | West Village | should infer vibe/context = date night |
-| `vegan quick lunch midtown` | budget-mid (or unspecified) | vegan, lunch | Midtown | should infer dietary + meal context |
-| `omakase around soho` | expensive (or unspecified) | omakase/japanese | SoHo | tests cuisine + neighborhood extraction |
+Common extension patterns:
 
-### 2) Integration / Pipeline testing
+- Add parser intents in `embeddings/query_parser.py` and map them to `soft_preferences`.
+- Add strict filters by extending `_adapt_filters` and `_apply_base_hard_filters`.
+- Tune ranking behavior by editing `DEFAULT_RANKING_WEIGHTS` and `BOOST_WEIGHTS`.
+- Swap retrieval strategy by extending `_retrieve_candidates_cluster_first`.
+- Add A/B comparisons using `debug_compare_queries`.
 
-Test full end-to-end behavior through the current backend path in `integration/api.py`.
+## Artifact generation reference
 
-Core checks for each query:
-- explicit query constraints are respected (price/location/cuisine terms in query text)
-- semantic intent is preserved (similar meaning still returns relevant places)
-- personalization helps ranking but does not overpower explicit query intent
+Build cluster artifacts:
 
-Edge cases to include:
-- vague query: `quick lunch`
-- specific query: `fried chicken`
-- conflicting/impossible query: `cheap omakase under $10 near Times Square`
-- location-heavy query: `best thai near columbia university`
-- price-heavy query: `best budget sushi under $20`
-- user-state split: no-history user vs strong-history user
+```bash
+python -m embeddings.build_index --input data/restaurants.json --k 20
+```
 
-Practical note:
-- because location intent parsing, price intent parsing, and interaction-based recommendation are currently incomplete, these should be priority targets in integration tests and regression checks.
+Run optional elbow analysis:
 
-### 3) Qualitative evaluation with sample queries
-
-Use a lightweight manual protocol before tuning weights:
-
-1. Build a benchmark of ~30-50 natural-language queries.
-2. For each query, record expected inferred filters/attributes.
-3. Run the pipeline and inspect top 5 results.
-4. Mark whether inferred constraints were satisfied.
-5. Assign a quick relevance score for top-5 results.
-
-Keep this in a simple sheet or markdown table with columns such as:
-- query
-- expected inferred constraints
-- top-5 returned restaurants
-- constraint satisfaction (yes/partial/no)
-- relevance@5 (manual rating)
-- notes/failure mode
-
-Simple metrics to track over time:
-- constraint satisfaction rate
-- relevance@5
-- personalization comparison across synthetic users (for the same query set)
-
-For synthetic-user evaluation, `test_user_profiles.md` already provides extreme profile personas that are useful for checking whether ranking changes are reasonable without breaking explicit query intent.
-
-### 4) Practical debugging checklist
-
-For every test query, log:
-- raw query text
-- inferred filters / parsed attributes
-- retrieved candidate count (before final ranking)
-- top ranked results and brief score breakdown (if available)
-
-This makes it easier to spot where intent is lost:
-- query parsing issue (wrong inferred constraints)
-- retrieval issue (no good candidates)
-- ranking issue (good candidates are present but ordered poorly)
+```bash
+python -m embeddings.elbow --input data/restaurants.json
+```

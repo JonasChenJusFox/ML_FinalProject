@@ -23,7 +23,7 @@ def render_signup_modal() -> None:
     if not can_open_dialog("signup_modal"):
         return
 
-    @st.dialog("Sign up")
+    @st.dialog("Sign up", on_dismiss=close_signup_modal)
     def _dialog() -> None:
         st.write("Create an account to save restaurants and receive personalized recommendations.")
 

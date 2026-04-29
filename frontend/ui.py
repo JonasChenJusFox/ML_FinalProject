@@ -53,7 +53,10 @@ def _render_help_dialog() -> None:
     if not can_open_dialog("help_dialog"):
         return
 
-    @st.dialog("How NearBite works")
+    @st.dialog(
+        "How NearBite works",
+        on_dismiss=lambda: st.session_state.__setitem__("show_help_dialog", False),
+    )
     def _dialog() -> None:
         st.write("1. Search from Home or Discover using natural language like `cheap tacos in LES`.")
         st.write("2. Use Advanced filters only if you want to narrow results manually.")

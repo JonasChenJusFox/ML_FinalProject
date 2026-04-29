@@ -27,7 +27,7 @@ def render_forgot_password_modal() -> None:
     if not can_open_dialog("forgot_password_modal"):
         return
 
-    @st.dialog("Forgot password")
+    @st.dialog("Forgot password", on_dismiss=close_forgot_password_modal)
     def _dialog() -> None:
         st.write("Reset your password to regain access to your account.")
 

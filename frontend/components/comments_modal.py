@@ -50,7 +50,7 @@ def render_comments_modal() -> None:
     if not can_open_dialog("comments_modal"):
         return
 
-    @st.dialog("Comments")
+    @st.dialog("Comments", on_dismiss=close_comments_modal)
     def _dialog() -> None:
         name = st.session_state.get("comments_modal_restaurant_name", "Restaurant")
         reviews = st.session_state.get("comments_modal_reviews", [])

@@ -28,7 +28,7 @@ def render_login_modal() -> None:
     if not can_open_dialog("login_modal"):
         return
 
-    @st.dialog("Log in")
+    @st.dialog("Log in", on_dismiss=close_login_modal)
     def _dialog() -> None:
         st.write("Log in to save restaurants, view your profile, and get personalized recommendations.")
 

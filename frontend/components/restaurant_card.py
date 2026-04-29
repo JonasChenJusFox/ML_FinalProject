@@ -107,7 +107,14 @@ _CARD_IFRAME_STYLES = """
   .nb-card-address,
   .nb-card-review { color: #6a6158; }
   .nb-card-meta { margin: 0.72rem 0 0.46rem 0; font-size: 0.95rem; }
-  .nb-card-address { font-size: 0.92rem; margin-bottom: 0.55rem; line-height: 1.5; }
+  .nb-card-address {
+    font-size: 0.92rem;
+    margin-bottom: 0.55rem;
+    line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
   .nb-card-review {
     line-height: 1.72;
     font-size: 0.96rem;
@@ -342,9 +349,14 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
         f'<div class="nb-card-review">{review_display}</div>'
         f"</div></div></div>"
     )
+    # Avoid clipping long addresses/reviews inside the iframe-based card body.
+    # Base height fits typical cards; add extra room as content length grows.
+    content_len = len(address_display) + len(review_display)
+    dynamic_height = min(520, 380 + max(0, (content_len - 180) // 18) * 10)
+
     components.html(
         _CARD_IFRAME_STYLES + card_inner,
-        height=380,
+        height=dynamic_height,
         scrolling=False,
     )
 

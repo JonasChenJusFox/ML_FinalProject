@@ -1,0 +1,104 @@
+query,expected_price,pred_price,price_correct,expected_dietary,pred_dietary,dietary_correct,expected_cuisine,pred_cuisine,cuisine_correct,expected_location,pred_location,location_correct,exact_match,crashed
+cheap vegan food near NYU,cheap,cheap,1,vegan,vegan,1,,,1,nyu,nyu,1,1,0
+expensive sushi in Brooklyn,expensive,expensive,1,,,1,sushi,sushi,1,brooklyn,brooklyn,1,1,0
+halal carts in Queens,,,1,halal,halal,1,,,1,queens,queens,1,1,0
+moderately priced italian in Manhattan,moderate,,1,,,1,italian,italian,1,manhattan,manhattan,1,1,0
+best cheap tacos,cheap,cheap,1,,,1,tacos,mexican,0,,,1,0,0
+plant-based brunch spots,,,1,plant-based,vegan,0,brunch,brunch,1,,,1,0,0
+luxury steakhouses midtown,luxury,luxury,1,,,1,steakhouses,,1,midtown,midtown,1,1,0
+vegetarian ramen in East Village,,,1,vegetarian,vegetarian,1,ramen,ramen,1,east village,east village,1,1,0
+budget friendly chinese food,cheap,cheap,1,,,1,chinese,chinese,1,,,1,1,0
+affordable dairy-free desserts,cheap,cheap,1,dairy-free,,1,desserts,dessert,1,,,1,1,0
+upscale french dining west village,luxury,expensive,0,,,1,french,,1,west village,west village,1,0,0
+moderate thai food brooklyn,moderate,moderate,1,,,1,thai,thai,1,brooklyn,brooklyn,1,1,0
+fancy seafood near me,expensive,expensive,1,,,1,seafood,,1,,,1,1,0
+cheap pizza queens,cheap,cheap,1,,,1,pizza,italian,0,queens,queens,1,0,0
+healthy gluten-free lunch,,,1,gluten-free,gluten-free,1,,,1,,,1,1,0
+best dim sum chinatown,,,1,,,1,dim sum,,1,chinatown,chinatown,1,1,0
+meatless burgers,,,1,,vegetarian,1,burgers,burger,1,,,1,1,0
+kosher deli brooklyn,,,1,kosher,kosher,1,deli,,1,brooklyn,brooklyn,1,1,0
+cheap coffee shop,cheap,cheap,1,,,1,coffee,coffee,1,,,1,1,0
+fine dining italian,luxury,expensive,0,,,1,italian,italian,1,,,1,0,0
+moderate korean bbq,moderate,moderate,1,,,1,korean,korean,1,,,1,1,0
+halal middle eastern food,,,1,halal,halal,1,middle eastern,,1,,,1,1,0
+affordable mexican food,cheap,cheap,1,,,1,mexican,mexican,1,,,1,1,0
+luxury omakase manhattan,luxury,luxury,1,,,1,japanese,,1,manhattan,manhattan,1,1,0
+vegan friendly indian,,,1,vegan,vegan,1,indian,indian,1,,,1,1,0
+pizza,,,1,,,1,pizza,italian,0,,,1,0,0
+tacos,,,1,,,1,mexican,mexican,1,,,1,1,0
+cheap,cheap,cheap,1,,,1,,,1,,,1,1,0
+vegan,,,1,vegan,vegan,1,,,1,,,1,1,0
+burgers,,,1,,,1,burger,burger,1,,,1,1,0
+sushi,,,1,,,1,japanese,sushi,0,,,1,0,0
+coffee,,,1,,,1,coffee,coffee,1,,,1,1,0
+drinks,,,1,,,1,bars,,1,,,1,1,0
+bbq,,,1,,,1,barbeque,,1,,,1,1,0
+healthy,,,1,healthy,,1,,,1,,,1,1,0
+I am feeling very hungry and would love some spicy thai food right now near midtown Manhattan that won't break the bank,cheap,,1,,,1,thai,thai,1,midtown,manhattan,0,0,0
+Looking for a super romantic and extremely expensive Italian place to take my girlfriend for our 5th anniversary in Brooklyn,luxury,expensive,0,,,1,italian,italian,1,brooklyn,brooklyn,1,0,0
+My friends and I want to get some cheap late night pizza or maybe some burgers in Queens after we go out drinking,cheap,cheap,1,,,1,pizza,italian,0,queens,queens,1,0,0
+Is there any place that serves gluten-free baked goods or healthy desserts that is moderately priced near the village,moderate,,1,gluten-free,gluten-free,1,desserts,dessert,1,village,greenwich village,1,1,0
+We need a massive seafood feast for a group of 10 people somewhere upscale in Staten Island,expensive,expensive,1,,,1,seafood,,1,staten island,staten_island,0,0,0
+Honestly literally anywhere that serves food,,,1,,,1,,,1,,,1,1,0
+I just want something to eat I don't care what it is,,,1,,,1,,,1,,,1,1,0
+Can you find me a place with good vibes and strong cocktails but also vegan options,,,1,vegan,vegan,1,cocktail bars,,1,,,1,1,0
+My parents are in town and we need a nice sit down French brasserie that is quiet,expensive,,1,,,1,french,,1,,,1,1,0
+Show me the best rated halal carts that serve chicken over rice for under 10 dollars,cheap,cheap,1,halal,halal,1,,,1,,,1,1,0
+expensive cheap food,,expensive,1,,,1,,,1,,,1,1,0
+vegan steakhouse,,,1,vegan,vegan,1,steakhouses,,1,,,1,1,0
+meatless bbq,,,1,vegetarian,vegetarian,1,barbeque,,1,,,1,1,0
+gluten-free pasta in the bronx,,,1,gluten-free,gluten-free,1,italian,italian,1,bronx,bronx,1,1,0
+healthy deep fried butter,,,1,healthy,,1,,,1,,,1,1,0
+cheap luxury omakase,cheap,luxury,0,,,1,japanese,,1,,,1,0,0
+seafood for someone allergic to fish,,,1,,,1,,,1,,,1,1,0
+dairy free ice cream,,,1,dairy-free,,1,desserts,,1,,,1,1,0
+kosher bacon cheeseburger,,,1,kosher,kosher,1,burgers,,1,,,1,1,0
+halal pork chops,,,1,halal,halal,1,,,1,,,1,1,0
+DROP TABLE restaurants;--,,,1,,,1,,,1,,,1,1,0
+'; UPDATE users SET role='admin';--,,,1,,,1,,,1,,,1,1,0
+"<script>alert(""xss"")</script>",,,1,,,1,,,1,,,1,1,0
+undefined,,,1,,,1,,,1,,,1,1,0
+null,,,1,,,1,,,1,,,1,1,0
+NaN,,,1,,,1,,,1,,,1,1,0
+       ,,,1,,,1,,,1,,,1,1,0
+\n\n\n\n\t\t\t\t\t,,,1,,,1,,,1,,,1,1,0
+🍔🌮🍕,,,1,,,1,,,1,,,1,1,0
+1234567890,,,1,,,1,,,1,,,1,1,0
+near 40.7128 -74.0060,,,1,,,1,,,1,,,1,1,0
+SELECT * FROM restaurants WHERE price='cheap',,cheap,1,,,1,,,1,,,1,1,0
+DROP DATABASE nearbite;,,,1,,,1,,,1,,,1,1,0
+cheap food in !@#$%^&*()_+,,cheap,1,,,1,,,1,,,1,1,0
+한국 음식,,,1,,,1,korean,,1,,,1,1,0
+comida mexicana barata,cheap,,1,,,1,mexican,,1,,,1,1,0
+very very very very very very very cheap food,cheap,cheap,1,,,1,,,1,,,1,1,0
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,,,1,,,1,,,1,,,1,1,0
+I hate italian food,,,1,,,1,,italian,1,,,1,1,0
+not pizza,,,1,,,1,,italian,1,,,1,1,0
+anything but sushi,,,1,,,1,,sushi,1,,,1,1,0
+I want to eat at McDonalds,,,1,,,1,,,1,,,1,1,0
+give me the most expensive restaurant in the entire world,luxury,expensive,0,,,1,,,1,,,1,0,0
+something cheap,,cheap,1,,,1,,,1,,,1,1,0
+a place to study with wifi,,,1,,,1,coffee,,1,,,1,1,0
+dog friendly cafe,,,1,,,1,cafe,coffee,0,,,1,0,0
+kid friendly brunch,,,1,,,1,brunch,brunch,1,,,1,1,0
+romantic dark lighting date night,,,1,,,1,,,1,,,1,1,0
+rooftop bar with a view,,,1,,,1,bars,,1,,,1,1,0
+bottomless brunch,,,1,,,1,,brunch,1,,,1,1,0
+late night eats after 2am,,,1,,,1,,,1,,,1,1,0
+where can I get a good salad,,,1,,,1,,salad,1,,,1,1,0
+show me Michelin star places,luxury,luxury,1,,,1,,,1,,,1,1,0
+i need to book a private room for 20 people,,,1,,,1,,,1,,,1,1,0
+good for groups,,,1,,,1,,,1,,,1,1,0
+outdoor seating,,,1,,,1,,,1,,,1,1,0
+cheap eats near me,cheap,cheap,1,,,1,,,1,,,1,1,0
+food,,,1,,,1,,,1,,,1,1,0
+dinner,,,1,,,1,,,1,,,1,1,0
+lunch,,,1,,,1,,,1,,,1,1,0
+breakfast,,,1,,,1,,,1,,,1,1,0
+snack,,,1,,,1,,,1,,,1,1,0
+dessert,,,1,,,1,desserts,dessert,1,,,1,1,0
+hungry,,,1,,,1,,,1,,,1,1,0
+eat,,,1,,,1,,,1,,,1,1,0
+feed me,,,1,,,1,,,1,,,1,1,0
+starving,,,1,,,1,,,1,,,1,1,0
+give me food,,,1,,,1,,,1,,,1,1,0

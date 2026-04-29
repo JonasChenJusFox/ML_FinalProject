@@ -1,0 +1,101 @@
+scenario_id,profile_id,preference_tags,query
+1,test_user_01,"asian,cheap,casual",dinner tonight
+2,test_user_01,"asian,cheap,casual",quick bite
+3,test_user_01,"asian,cheap,casual",somewhere good
+4,test_user_01,"asian,cheap,casual",food
+5,test_user_02,"vegan,mediterranean,middle eastern",dinner tonight
+6,test_user_02,"vegan,mediterranean,middle eastern",quick bite
+7,test_user_02,"vegan,mediterranean,middle eastern",somewhere good
+8,test_user_02,"vegan,mediterranean,middle eastern",food
+9,test_user_03,"italian,upscale,romantic",dinner tonight
+10,test_user_03,"italian,upscale,romantic",quick bite
+11,test_user_03,"italian,upscale,romantic",somewhere good
+12,test_user_03,"italian,upscale,romantic",food
+13,test_user_04,"cafe,brunch,bakery",dinner tonight
+14,test_user_04,"cafe,brunch,bakery",quick bite
+15,test_user_04,"cafe,brunch,bakery",somewhere good
+16,test_user_04,"cafe,brunch,bakery",food
+17,test_user_05,"spicy,indian,thai,mexican",dinner tonight
+18,test_user_05,"spicy,indian,thai,mexican",quick bite
+19,test_user_05,"spicy,indian,thai,mexican",somewhere good
+20,test_user_05,"spicy,indian,thai,mexican",food
+21,test_user_06,"dessert,cafe,late-night",dinner tonight
+22,test_user_06,"dessert,cafe,late-night",quick bite
+23,test_user_06,"dessert,cafe,late-night",somewhere good
+24,test_user_06,"dessert,cafe,late-night",food
+25,test_user_07,"mediterranean,casual",dinner tonight
+26,test_user_07,"mediterranean,casual",quick bite
+27,test_user_07,"mediterranean,casual",somewhere good
+28,test_user_07,"mediterranean,casual",food
+29,test_user_08,"cheap,fast,lunch",dinner tonight
+30,test_user_08,"cheap,fast,lunch",quick bite
+31,test_user_08,"cheap,fast,lunch",somewhere good
+32,test_user_08,"cheap,fast,lunch",food
+33,test_user_09,"fine dining,expensive,date night",dinner tonight
+34,test_user_09,"fine dining,expensive,date night",quick bite
+35,test_user_09,"fine dining,expensive,date night",somewhere good
+36,test_user_09,"fine dining,expensive,date night",food
+37,test_user_10,"popular,trending",dinner tonight
+38,test_user_10,"popular,trending",quick bite
+39,test_user_10,"popular,trending",somewhere good
+40,test_user_10,"popular,trending",food
+41,test_user_11,"thai,spicy,lively",dinner tonight
+42,test_user_11,"thai,spicy,lively",quick bite
+43,test_user_11,"thai,spicy,lively",somewhere good
+44,test_user_11,"thai,spicy,lively",food
+45,test_user_12,"korean,bbq,late-night",dinner tonight
+46,test_user_12,"korean,bbq,late-night",quick bite
+47,test_user_12,"korean,bbq,late-night",somewhere good
+48,test_user_12,"korean,bbq,late-night",food
+49,test_user_13,"chinese,dim sum,groups",dinner tonight
+50,test_user_13,"chinese,dim sum,groups",quick bite
+51,test_user_13,"chinese,dim sum,groups",somewhere good
+52,test_user_13,"chinese,dim sum,groups",food
+53,test_user_14,"japanese,sushi,ramen",dinner tonight
+54,test_user_14,"japanese,sushi,ramen",quick bite
+55,test_user_14,"japanese,sushi,ramen",somewhere good
+56,test_user_14,"japanese,sushi,ramen",food
+57,test_user_15,"vegetarian,indian,mexican",dinner tonight
+58,test_user_15,"vegetarian,indian,mexican",quick bite
+59,test_user_15,"vegetarian,indian,mexican",somewhere good
+60,test_user_15,"vegetarian,indian,mexican",food
+61,test_user_16,"burger,comfort food,american",dinner tonight
+62,test_user_16,"burger,comfort food,american",quick bite
+63,test_user_16,"burger,comfort food,american",somewhere good
+64,test_user_16,"burger,comfort food,american",food
+65,test_user_17,"mexican,tacos,casual",dinner tonight
+66,test_user_17,"mexican,tacos,casual",quick bite
+67,test_user_17,"mexican,tacos,casual",somewhere good
+68,test_user_17,"mexican,tacos,casual",food
+69,test_user_18,"indian,cozy,spicy",dinner tonight
+70,test_user_18,"indian,cozy,spicy",quick bite
+71,test_user_18,"indian,cozy,spicy",somewhere good
+72,test_user_18,"indian,cozy,spicy",food
+73,test_user_19,"pizza,pasta,italian",dinner tonight
+74,test_user_19,"pizza,pasta,italian",quick bite
+75,test_user_19,"pizza,pasta,italian",somewhere good
+76,test_user_19,"pizza,pasta,italian",food
+77,test_user_20,"cheap,late-night,fast",dinner tonight
+78,test_user_20,"cheap,late-night,fast",quick bite
+79,test_user_20,"cheap,late-night,fast",somewhere good
+80,test_user_20,"cheap,late-night,fast",food
+81,test_user_21,"aesthetic,cafe,brunch",dinner tonight
+82,test_user_21,"aesthetic,cafe,brunch",quick bite
+83,test_user_21,"aesthetic,cafe,brunch",somewhere good
+84,test_user_21,"aesthetic,cafe,brunch",food
+85,test_user_22,"quiet,coffee,casual",dinner tonight
+86,test_user_22,"quiet,coffee,casual",quick bite
+87,test_user_22,"quiet,coffee,casual",somewhere good
+88,test_user_22,"quiet,coffee,casual",food
+89,test_user_23,"groups,lively,mexican",dinner tonight
+90,test_user_23,"groups,lively,mexican",quick bite
+91,test_user_23,"groups,lively,mexican",somewhere good
+92,test_user_23,"groups,lively,mexican",food
+93,test_user_24,"late-night,fast,burgers",dinner tonight
+94,test_user_24,"late-night,fast,burgers",quick bite
+95,test_user_24,"late-night,fast,burgers",somewhere good
+96,test_user_24,"late-night,fast,burgers",food
+97,test_user_25,"adventurous,expensive",dinner tonight
+98,test_user_25,"adventurous,expensive",quick bite
+99,test_user_25,"adventurous,expensive",somewhere good
+100,test_user_25,"adventurous,expensive",food

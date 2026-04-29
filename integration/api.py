@@ -757,9 +757,6 @@ def search_restaurants(
         parsed_query,
     )
 
-    print("explicit_hard_filters:", explicit_hard_filters)
-    print("query_hard_filters:", query_hard_filters)
-    print("soft_preferences:", soft_preferences)
 
     # Step 3: Build User Vector
     profile_vector = _build_user_embedding_if_available(user_id)
@@ -785,92 +782,163 @@ def search_restaurants(
             )
 
     # Step 5: Embed Query and Fuse Vectors
+    # Use personalization as a tie-breaker for explicit queries, stronger for vague queries
+    is_explicit_food_query = bool(
+        soft_preferences.get("cuisines") or
+        soft_preferences.get("dietary") or
+        explicit_hard_filters.get("cuisines")
+    )
+    dynamic_alpha = 0.1 if is_explicit_food_query else 0.6
+
     if use_recommendation_mode:
         query_vector = [0.0] * len(user_vector)
         fused_vector = fuse_vectors(query_vector, user_vector, alpha=1.0)
     else:
         query_vector = embed_query(embedding_query_text)
-        fused_vector = fuse_vectors(query_vector, user_vector, alpha=PERSONALIZATION_ALPHA)
+        fused_vector = fuse_vectors(query_vector, user_vector, alpha=dynamic_alpha)
 
     # Step 6: Retrieve semantic candidates (fetch 3x needed to allow for filtering)
     candidates = _retrieve_candidates_cluster_first(fused_vector, k=requested_top_k * 3)
 
-    print("before filter:", len(candidates))
 
     # Step 7: Apply structured hard filters
     origin_lat = _safe_float(adapted_filters.get("origin_lat"), NYU_LAT)
     origin_lon = _safe_float(adapted_filters.get("origin_lon"), NYU_LON)
     candidate_restaurants = _with_distance_km([r for r, _ in candidates], origin_lat, origin_lon)
     
-    explicit_filtered = apply_strict_filters(candidate_restaurants, explicit_hard_filters)
-    hard_filtered = apply_strict_filters(explicit_filtered, query_hard_filters)
-
-    print("after strict filter:", len(hard_filtered))
-    print("len(candidate_restaurants):", len(candidate_restaurants))
-    print("len(explicit_filtered):", len(explicit_filtered))
-    print("len(hard_filtered):", len(hard_filtered))
-
-    # Optional strict neighborhood radius boundary
-    strict_in_near = isinstance(parsed_query, dict) and bool(parsed_query.get("in_near_place_filter"))
-    print("strict_in_near:", strict_in_near)
-    print("parsed_query:", parsed_query)
+    # 1. Resolve filters: UI takes precedence over Parsed constraints
+    resolved_filters = {}
     
-    if strict_in_near and isinstance(parsed_query, dict):
+    if adapted_filters.get("explicit_cuisines") and adapted_filters.get("cuisines"):
+        resolved_filters["cuisines"] = adapted_filters["cuisines"]
+    elif parsed_query and (parsed_query.get("cuisine") or parsed_query.get("cuisines")):
+        pc = parsed_query.get("cuisine") or parsed_query.get("cuisines")
+        resolved_filters["cuisines"] = pc if isinstance(pc, list) else [pc]
+
+    if adapted_filters.get("explicit_dietary") and adapted_filters.get("dietary"):
+        resolved_filters["dietary"] = adapted_filters["dietary"]
+    elif parsed_query and parsed_query.get("dietary"):
+        pd = parsed_query.get("dietary")
+        resolved_filters["dietary"] = pd if isinstance(pd, list) else [pd]
+
+    if adapted_filters.get("explicit_price") and adapted_filters.get("price"):
+        resolved_filters["price"] = adapted_filters["price"]
+    elif parsed_query and parsed_query.get("price") and parsed_query.get("price") != "unknown":
+        resolved_filters["price"] = [parsed_query.get("price")]
+
+    if adapted_filters.get("explicit_borough") and adapted_filters.get("borough"):
+        resolved_filters["borough"] = adapted_filters["borough"]
+    elif parsed_query:
+        place = parsed_query.get("in_near_place_filter")
+        if isinstance(place, dict) and place.get("kind") == "borough" and place.get("borough"):
+            resolved_filters["borough"] = place["borough"]
+        else:
+            loc_label = _parsed_location_label(parsed_query.get("location"))
+            if loc_label:
+                pb = _normalize_borough_name(loc_label)
+                if pb: resolved_filters["borough"] = pb
+
+    if adapted_filters.get("explicit_max_distance") and adapted_filters.get("max_distance_km") is not None:
+        resolved_filters["max_distance_km"] = adapted_filters["max_distance_km"]
+    elif parsed_query and parsed_query.get("distance_time_intent"):
+        d_intent = parsed_query.get("distance_time_intent")
+        if isinstance(d_intent, dict) and d_intent.get("max_km") is not None:
+            resolved_filters["max_distance_km"] = d_intent.get("max_km")
+
+    # Wave 1: Strict match pool
+    wave_1_pool = apply_strict_filters(candidate_restaurants, resolved_filters)
+    
+    # Neighborhood / Point Radius strict filtering for Wave 1
+    if not adapted_filters.get("explicit_max_distance") and parsed_query:
         place = parsed_query.get("in_near_place_filter")
         if isinstance(place, dict) and place.get("kind") == "neighborhood":
-            center_lat = place.get("lat")
-            center_lon = place.get("lon")
-            # Default to 5.0 km
-            radius_km = place.get("radius_km", 5.0)
-            if isinstance(center_lat, (int, float)) and isinstance(center_lon, (int, float)):
-                # Ensure minimum radius of 3.0 km
-                radius_km = max(float(radius_km) if isinstance(radius_km, (int, float)) else 5.0, 3.0)
-                
-                hard_filtered = _filter_within_radius_km(
-                    hard_filtered,
-                    float(center_lat),
-                    float(center_lon),
+            c_lat = place.get("lat")
+            c_lon = place.get("lon")
+            if isinstance(c_lat, (int, float)) and isinstance(c_lon, (int, float)):
+                radius_km = resolved_filters.get("max_distance_km") or place.get("radius_km", 3.0)
+                radius_km = max(float(radius_km), 3.0)
+                wave_1_pool = _filter_within_radius_km(
+                    wave_1_pool,
+                    float(c_lat),
+                    float(c_lon),
                     radius_km,
                 )
-                print("radius_km used:", radius_km)
+                resolved_filters["location"] = place.get("name", "neighborhood")
 
-    print("len(after_radius_filter):", len(hard_filtered))
-    print("after radius filter:", len(hard_filtered))
-
-    # Soft fallback: if strict query filters removed everything, relax them to rely on ranking soft boosts.
-    ranking_pool = hard_filtered
-    if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS:
-        ranking_pool = explicit_filtered
-        if len(ranking_pool) < HARD_FILTER_FALLBACK_MIN_RESULTS:
-            ranking_pool = candidate_restaurants
-
-    print("len(ranking_pool):", len(ranking_pool))
-
-    # Step 8: Rank Candidates (via soft boosts and fusion scores)
+    # Step 8: Rank Candidates
     score_map = {
         str(restaurant.get("business_id", "")): score
         for restaurant, score in candidates
         if isinstance(restaurant, dict)
     }
 
-    filtered_with_scores = [
+    # Pass resolved filters into soft_preferences to use as boosts/penalties in ranking
+    if "cuisines" in resolved_filters: soft_preferences["cuisines"] = resolved_filters["cuisines"]
+    if "dietary" in resolved_filters: soft_preferences["dietary"] = resolved_filters["dietary"]
+    if "price" in resolved_filters and resolved_filters["price"]: soft_preferences["price"] = resolved_filters["price"][0]
+    if "borough" in resolved_filters: soft_preferences["borough"] = resolved_filters["borough"]
+    if "max_distance_km" in resolved_filters: soft_preferences["max_distance_km"] = resolved_filters["max_distance_km"]
+    if "location" in resolved_filters: soft_preferences["location"] = resolved_filters["location"]
+
+    # Rank Wave 1 (Strict matches)
+    w1_with_scores = [
         (restaurant, score_map.get(str(restaurant.get("business_id", "")), 0.0))
-        for restaurant in ranking_pool
+        for restaurant in wave_1_pool
     ]
-
-    print("ranker input:", len(ranking_pool))
-
-    ranked = rank_candidates(
-        candidates=filtered_with_scores,
+    w1_ranked = rank_candidates(
+        candidates=w1_with_scores,
         active_filters=soft_preferences,
         top_k=requested_top_k,
     )
 
-    print("ranker output:", len(ranked))
-    print("requested_top_k:", requested_top_k)
-    print("final returned:", len(ranked))
+    # Wave 2: Fallback pool (Explicit UI filters only)
+    wave_2_pool = apply_strict_filters(candidate_restaurants, explicit_hard_filters)
+    
+    # Rank Wave 2
+    w2_with_scores = [
+        (restaurant, score_map.get(str(restaurant.get("business_id", "")), 0.0))
+        for restaurant in wave_2_pool
+    ]
+    w2_ranked = rank_candidates(
+        candidates=w2_with_scores,
+        active_filters=soft_preferences,
+        top_k=requested_top_k,
+    )
 
-    return ranked
+    # Step 9: Merge Waves without reordering Wave 1
+    final_ranked = []
+    seen_ids = set()
+    
+    active_strict_keys = list(resolved_filters.keys())
+    relaxed_keys = [k for k in active_strict_keys if k not in explicit_hard_filters or not explicit_hard_filters.get(k)]
+
+    for item in w1_ranked:
+        bid = str(item.get("business_id", ""))
+        if bid not in seen_ids:
+            item["_debug_ranking"] = {
+                "wave": "strict",
+                "matched_filters": active_strict_keys,
+                "relaxed_filters": []
+            }
+            final_ranked.append(item)
+            seen_ids.add(bid)
+            if len(final_ranked) >= requested_top_k:
+                break
+
+    for item in w2_ranked:
+        if len(final_ranked) >= requested_top_k:
+            break
+        bid = str(item.get("business_id", ""))
+        if bid not in seen_ids:
+            item["_debug_ranking"] = {
+                "wave": "fallback",
+                "matched_filters": [k for k in active_strict_keys if k not in relaxed_keys],
+                "relaxed_filters": relaxed_keys
+            }
+            final_ranked.append(item)
+            seen_ids.add(bid)
+
+    return final_ranked
 
 
 def get_all_restaurants() -> list[dict]:

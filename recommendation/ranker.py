@@ -414,6 +414,16 @@ def rank_candidates(
             + (BOOST_WEIGHTS["meal_type"] * meal_type_boost)
         )
         final_score = clamp(final_score + weighted_boost)
+        
+                
+        # Dietary + Location Distance Guardrail
+        has_location_intent = bool(
+            filters.get("location")
+            or filters.get("origin_lat") is not None
+            or filters.get("origin_lon") is not None
+            or filters.get("nearby")
+        )
+
         breakdown["dietary_match"] = dietary_boost
         breakdown["location_match"] = location_boost
         breakdown["cuisine_match"] = cuisine_boost

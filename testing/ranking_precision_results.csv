@@ -1,0 +1,104 @@
+query,precision_at_5,top_5_restaurants
+cheap vegan food near NYU,0.8,Ital Kitchen | Ras Plant Based | Miriam | Tara Kitchen - Tribeca New York | Lemongrass Brooklyn
+expensive sushi in Brooklyn,0.8,Gen | Brooklyn Suya | Konoha Yakitori Ramen and Sushi House | Takahachi SA | SUGARFISH | Midtown West
+halal carts in Queens,0.0,Madhuram Sweets | Paradise Alley | Bakery Boys of New York | Queen | Burger Queens
+moderately priced italian in Manhattan,1.0,Quality Italian | Giulietta | Tony's Di Napoli | Serano's Italian | Carlotto
+best cheap tacos,1.0,La Taq | Jalisco Tacos | Tacos El Bronco | Taqueria Milear | Taqueria Mexican Restaurant
+plant-based brunch spots,0.4,Birch Coffee | Bird & Branch Coffee Roasters | Harvest Kitchen | Birch Coffee | Beans and Leaves
+luxury steakhouses midtown,0.6,NIKU X | Bourbon Steak | Quality Bistro | WatchHouse | 53 NYC
+vegetarian ramen in East Village,1.0,Ippudo | Momo Ramen | Ramen Ishida | Ramen Danbo - West Vilage | RamenYa
+budget friendly chinese food,1.0,China Garden | Shanghai | New China | China Garden | China House Restaurant
+affordable dairy-free desserts,0.6,What's 4 Dessert | The Luscious Little Dessert Company | Meadow Dessert | OC Dessert | Cookies N Cream 2
+upscale french dining west village,0.2,Cookshop | Grand Brasserie | Ladurée Madison | Little Ruby's West Village | RH Rooftop Restaurant at RH New York
+moderate thai food brooklyn,1.0,Holic Thai Bistro | Amy Thai Bistro | Forever Thai | Rua Thai Restaurant | Tong
+fancy seafood near me,1.0,Meet The Meat | Tara Kitchen - Tribeca New York | Meraki Greek Bistro | Sea Salt | The King of Fish
+cheap pizza queens,1.0,Margherita Pizza | Michael & Sons Pizza & Italian Food | Lucia Pizza | Lillian Pizzeria | Rosa's Pizza
+healthy gluten-free lunch,0.4,Glace by noglu | Mariella | The Gyro Project | SnackBOX | Sweet Chick
+best dim sum chinatown,1.0,Mei Lai Xuan | Din Soup Dumplings | For U | Hey Yuet | Excellent Dumpling House
+meatless burgers,1.0,Milk Burger | Burger Spot | Cuci Burger | Bronx Burger House | The Bronx Burger House
+kosher deli brooklyn,1.0,Mama Kitchen | Izzy's Brooklyn Smokehouse | The Loft Steakhouse | Liebman's Kosher Delicatessen | Brooklyn Kolache
+cheap coffee shop,1.0,Ludlow Coffee Supply | Birch Coffee | Lucid Café | Joe Coffee Company: W 68th St | The Coffee Inn
+fine dining italian,1.0,Ci Siamo | Trattoria Dell'Arte | Pastavino | Serano's Italian | Roma Pizza & Restaurant
+moderate korean bbq,1.0,"Jongro BBQ | KPOT Korean BBQ, Hot Pot & Sushi | Tokyo Sushi Korean BBQ | Meat Me BBQ | Gangnam BBQ"
+halal middle eastern food,1.0,Doner Haus | Dar Lbahja | Fatima's Halal Kitchen | Sumatera Restaurant NYC | Peri Peri Grill House
+affordable mexican food,1.0,Mexicocina Mezcaleria | Mexicana Deli Grocery | Xochimilco Family Restaurant | Jalisco Tacos | Taqueria Mexican Restaurant
+luxury omakase manhattan,0.8,Coral Omakase | Catzuneko Shokudo | Odo East Village | Omakase OSUKAA LIC | Mykonian House
+vegan friendly indian,0.6,Neem Indian Cuisine | Ippudo | Momo Ramen | Bua Thai Ramen & Robata Grill | Angel Indian Restaurant
+pizza,1.0,Lucia Pizza Of Soho | Rosa's Pizza | Ace's Pizza | Joe's Pizza | Luigi's Pizza
+tacos,1.0,Taqueria Ramirez | Tacos El Bronco | Tacos El Bronco II | Dos Toros Taqueria | Taco's Puebla
+cheap,1.0,Luckydog | New Hardee Chinese Restaurant | Kew Gardens Chicken | Peri Peri Original | Yummy City
+vegan,0.4,Ital Kitchen | Ras Plant Based | Go Nonna | The Little Pig | Pig Heaven
+burgers,1.0,Milk Burger | Cuci Burger | Burger Spot | Emoji Burger | Crispy Burger
+sushi,0.2,Suki Desu | Suram Sushi & Ramen | Zen Ramen & Sushi | Imasa Nori Sushi Izakaya | Susukino Ramen
+coffee,1.0,Paper Coffee | 787 Coffee | Before Coffee | About Coffee | Dear Coffee
+drinks,0.8,Bar Six | Bar Bonobo | Bathtub Gin | Bar 58 | Chocolate Moonshine
+bbq,1.0,Jongro BBQ | Meat Me BBQ | Banjos BBQ | Y Space BBQ | Hometown Bar-B-Que
+healthy,0.0,Banh Anh Em | Okiboru House of Tsukemen | Enerugi Ramen | Nourish | Sumatera Restaurant NYC
+I am feeling very hungry and would love some spicy thai food right now near midtown Manhattan that won't break the bank,1.0,Sala Thai Restaurant | New Chinatown  Asian Cuisine/ Bar | Thai Pavilion | THEP Thai Restaurant | Up Thai
+Looking for a super romantic and extremely expensive Italian place to take my girlfriend for our 5th anniversary in Brooklyn,1.0,Al Di La Trattoria | Evelina | Rome To Brooklyn Pizza | I Cavallini | Maiella
+My friends and I want to get some cheap late night pizza or maybe some burgers in Queens after we go out drinking,0.6,Smash House Burgers Queens | Last Call | C Bar & Lounge | Burger Queens | Afternight BBQ
+Is there any place that serves gluten-free baked goods or healthy desserts that is moderately priced near the village,0.8,Mariella | Fabrique Artisan Bakery | By the Way Bakery | Glace by noglu | Heritage Grand Bakery
+We need a massive seafood feast for a group of 10 people somewhere upscale in Staten Island,0.8,South Fin Grill | River Dock Cafe | Greek Festival Charcoal Grill | Seabass Taverna | Hook & Reel Cajun Seafood & Bar
+Honestly literally anywhere that serves food,1.0,SnackBOX | The Greek Kitchen | Meet The Meat | The Migrant Kitchen - US Open | Let’em Cook at Rio
+I just want something to eat I don't care what it is,1.0,SnackBOX | Thai Food Near Me | Sweet Chick | Red Hook Food | Nourish
+Can you find me a place with good vibes and strong cocktails but also vegan options,0.8,Twilight Lounge | Room 207 | The Belfry | Basement | The Tusk Bar
+My parents are in town and we need a nice sit down French brasserie that is quiet,0.8,Brass | Grand Brasserie | Loulou Petit Bistro & Speakeasy | 161 Lafayette | Le Parisien
+Show me the best rated halal carts that serve chicken over rice for under 10 dollars,1.0,Halal Chicks | Angel Indian Restaurant | Blazin Chicken & Gyro | The Munchies | Fatima's Halal Kitchen
+expensive cheap food,1.0,Chip City | Chubby Skewers | Red Hook Food | Butterfield Market | Guadalupana Bakery
+vegan steakhouse,0.8,Ital Kitchen | Meet The Meat | Arnaud’s Steak and Seafood | Tony's Halal Food | NYY Steak - Yankee Stadium
+meatless bbq,1.0,Chubby Cattle | Jongro BBQ | Meat Me BBQ | Simon's BBQ II | Dallas BBQ
+gluten-free pasta in the bronx,1.0,Pasta Pasta | Nolita Pizza | Nino's 46 | Casa Della Mozzarella Italian Deli | San Gennaro Trattoria Restaurant Bar
+healthy deep fried butter,0.0,Mae Chan Thai Cuisine | Chester's Fried Chicken | Pelicana Chicken - Forest Hills | Golden Pig | Salty Lunch Lady's Little Luncheonette
+cheap luxury omakase,0.4,Omakase OSUKAA LIC | Coral Omakase | Odo East Village | Ki Omakase | Laliko
+seafood for someone allergic to fish,1.0,Seven Fish Cuisine | Amalfi Coast Pizzeria And Restaurant | Miyabi Asian Fusion | Umi Hotpot Seafood & Sushi Buffet | Banhmis Asian Cuisine & Bubble Tea
+dairy free ice cream,0.2,Sweet Moment | What's 4 Dessert | Cookies N Cream 2 | Mr Ps Ice Cream Shop | Stuffed Ice Cream
+kosher bacon cheeseburger,0.6,Burger Spot | Crazy Meat NYC | Salt Bread Ko | 7th Street Burger Times Square | Santa Fe BK
+halal pork chops,1.0,Fatima's Halal Kitchen | Sumatera Restaurant NYC | Paratha Wala | Angel Indian Restaurant | Neem Indian Cuisine
+DROP TABLE restaurants;--,1.0,Cookshop | Do Not Disturb | Anytime Kitchen | NIKU X | Chi Restaurant & Bar
+'; UPDATE users SET role='admin';--,1.0,Leonetta | Aragvi | Ubani | Miss Ada | Ramen Danbo
+"<script>alert(""xss"")</script>",1.0,I’Milky - Midtown | Frisson Espresso | The Jolly Goat Coffee Bar | Santa Fe BK | Sote Coffee Roasters
+undefined,1.0,Don Angie | Da Andrea - Greenwich Village | Nittis Italian Restaurant in Hell's Kitchen | Lillo Cucina Italiana | Da Raffaele
+null,1.0,La Nonna Ristorante & Bar | Suram Sushi & Ramen | Kin Ramen | SSAM | Nonna’s
+NaN,1.0,Nan Xiang Soup Dumplings - Koreatown | Nyonya | Nom Nam | Din Tai Fung | Jiang Nan
+       ,1.0,Cuna | Salmon Noodle 3.0 | Nounou Noodle Bar | Conspiracy Cafe | Sam's Delights
+\n\n\n\n\t\t\t\t\t,1.0,1915 Lanzhou Hand Pulled Noodles | Dar525 | Breeze | Mala Project | Shan
+🍔🌮🍕,1.0,Jing Li | China Delight | Mr Bao | Shanghai Zhen Gongfu | O Mandarin
+1234567890,1.0,51st Bakery and Cafe | Polly’s Cafe | 188 Bakery Cuchifritos | Kitchen 79 | Aladdin Sweets & Restaurant
+near 40.7128 -74.0060,1.0,Thai Food Near Me | Rockaway Brewing Company | 32 North | Pleasant Ave Café | Tourmaline
+SELECT * FROM restaurants WHERE price='cheap',1.0,Luckydog | Sumatera Restaurant NYC | Pata Paplean | Tikka Grill | Angel Indian Restaurant
+DROP DATABASE nearbite;,1.0,Sweet Lu | Big Tiny | The Black Cake Company | Levant on Smith | Little Purity
+cheap food in !@#$%^&*()_+,1.0,Golden Pig | Peri Peri Original | Halal Chicks | The Munchies | Old Sport Food
+한국 음식,0.8,Haejang | Ho Wok | Hahm Ji Bach | I Am Kimchi | Jang Dok Dae
+comida mexicana barata,0.6,Cantina Cubana | Mamacita Comida | Alta Calidad | Ruta Oaxaca Mexican Cuisine | La Catrina Mexican Bar III
+very very very very very very very cheap food,1.0,Golden Pig | Sophie’s Rangoon Kitchen | Ler Lers | B2J Tasty Pot | Old Sport Food
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,1.0,Excellent Dumpling House | Dea An Authentic Eatery | Quick Bite BX | Dugout BX | Jade Spoon Bronxville
+I hate italian food,1.0,Roma Pizza & Restaurant | I Cavallini | Bad Roman | Quality Italian | Luigi Pizza
+not pizza,1.0,Nolita Pizza | Joe's Pizza | Lombardi's Pizza | Joe's Pizza | Little Italy Pizza
+anything but sushi,1.0,Suki Desu | Suram Sushi & Ramen | Catzuneko Shokudo | Nami Nori | Imasa Nori Sushi Izakaya
+I want to eat at McDonalds,1.0,The Munchies | Meet The Meat | Meat Me BBQ | Jimbo's Hamburger Palace | Mad For Chicken
+give me the most expensive restaurant in the entire world,0.0,Maiella | Mykonian House | Thai Villa | Valla Table | Chalong
+something cheap,1.0,Telegraphe Cafe | Best Bagel & Coffee | Luckin Coffee | Luckydog | Sweetleaf
+a place to study with wifi,0.2,Motek | Çka Ka Qëllue | Qahwah House | Karczma | K'Far
+dog friendly cafe,0.4,"Citizen of Chelsea - Breakfast Restaurant, Cafe & Deli | Best Bagel & Coffee | Lucid Café | The Jolly Goat Coffee Bar | Café Grumpy"
+kid friendly brunch,1.0,Dinner Party | Emma's Torch | Little Egg | Birley Bakery | Brunch At Zion's
+romantic dark lighting date night,1.0,Twilight Lounge | L'Artusi | The Reading Room | The Weather Room | Four Seasons Joyful
+rooftop bar with a view,1.0,Hide Rooftop | RH Rooftop Restaurant at RH New York | Yard Bar | Bar Bastion | The Lobby
+bottomless brunch,1.0,Emma's Torch | Dinner Party | Brunch At Zion's | Flamingobaby Kitchen | Little Egg
+late night eats after 2am,1.0,Fishmarket Restaurant | the last drop cafe | Novelty Eats | The Eleanors Bar and Restaurant | Wild Crab House
+where can I get a good salad,1.0,Naxos | Aragvi | Frena | Silky Kitchen | L'Osteria
+show me Michelin star places,0.2,Westland Roe | Thai Food Near Me | Petite Fleur Cake | Chef Papa Vietnamese Kitchen | Stellar Pokhara
+i need to book a private room for 20 people,1.0,Room 207 | 161 Lafayette | Raines Law Room | Sorate | The Gold Room
+good for groups,1.0,The Uncommons | Madeline’s | We Got Company | The Greats Of Craft | The Collectors Bar
+outdoor seating,1.0,Nubiani | The Weather Room | Banter | The Casual Greek | The Parliament
+cheap eats near me,1.0,Butterfield Market | Salty Lunch Lady's Little Luncheonette | The Munchies | Chester's Fried Chicken | Roast & Co
+food,1.0,Red Hook Food | Harvest Kitchen | Fine Food Cuisine | Eaterniti | Home Kitchen
+dinner,1.0,Twilight Lounge | Little Owl | Do Not Disturb | Cookshop | Anytime Kitchen
+lunch,1.0,"Liberty Bagels Midtown | Citizen of Chelsea - Breakfast Restaurant, Cafe & Deli | Anytime Kitchen | Brioche NYC | Cookshop"
+breakfast,1.0,Interlude Coffee & Tea | Café Grumpy | Charlotte Cafe | Before Coffee | Frame
+snack,1.0,Bibble And Sip | Sam's Delights | Jade's Snack Shoppe | Messy Donuts | It's A Cuppie
+dessert,1.0,Spot Dessert Bar | Sam's Delights | A Queen's Favor | What's 4 Dessert | Meadow Dessert
+hungry,1.0,Chubby Cattle | Thai Food Near Me | SnackBOX | Luckydog | Pig and Khao
+eat,1.0,Thai Diner | Eaterniti | Nourish | Meet The Meat | The Munchies
+feed me,1.0,Chubby Cattle | The Little Pig | Red Hook Food | Nourish | Starving Artist Cafe & Gallery
+starving,1.0,Chubby Cattle | Harvest Kitchen | Pig and Khao | Sophie’s Rangoon Kitchen | Eaterniti
+give me food,1.0,Thai Food Near Me | SnackBOX | Red Hook Food | Good Thanks | Nourish

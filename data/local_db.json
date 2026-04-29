@@ -75,5 +75,98 @@
       "note": "too noisy for studying",
       "timestamp": "2026-04-24T23:41:17.177050"
     }
+  ],
+  "users": [
+    {
+      "username": "test_user_11",
+      "email": "test_user_11@nearbite.test",
+      "password": "test1234",
+      "display_name": "Thai food enthusiast",
+      "created_at": "2026-04-28T23:36:49.899343"
+    }
+  ],
+  "user_profiles": [
+    {
+      "username": "test_user_11",
+      "raw_answers": {
+        "top_cuisines": [
+          "Thai"
+        ],
+        "craving_preferences": [
+          "spicy",
+          "comfort food"
+        ],
+        "price_comfort_level": "$$",
+        "vibes_dining_style": [
+          "casual hangout",
+          "lively / buzzy"
+        ],
+        "dietary_restrictions": [
+          "None"
+        ],
+        "adventurousness": 3,
+        "travel_willingness": "Short commute (10–20 min / ~1 mi)",
+        "dining_company": "Small group (3–5)",
+        "typical_meals": [
+          "lunch",
+          "dinner"
+        ],
+        "decision_criteria": [
+          "ratings",
+          "vibe/atmosphere"
+        ],
+        "novelty_preference": "mix of both",
+        "favorite_dishes": [
+          "pad thai",
+          "tom yum",
+          "green curry"
+        ],
+        "loved_restaurants": [],
+        "wishlist_restaurants": [],
+        "frequent_restaurants": [],
+        "aspirational_restaurants": []
+      },
+      "normalized_features": {
+        "cuisine_pref": [
+          "thai"
+        ],
+        "craving_tags": [
+          "spicy",
+          "comfort food"
+        ],
+        "price_level": {
+          "symbol": "$$",
+          "numeric": 2
+        },
+        "vibe_tags": [
+          "casual hangout",
+          "lively / buzzy"
+        ],
+        "dietary_tags": [],
+        "adventure_level": 0.5,
+        "max_travel_km": 1.6,
+        "company_tags": [
+          "small group (3–5)"
+        ],
+        "meal_tags": [
+          "lunch",
+          "dinner"
+        ],
+        "decision_weights": {
+          "ratings": 1.0,
+          "vibe/atmosphere": 1.0
+        },
+        "novelty_level": 0.5,
+        "dish_tags": [
+          "pad thai",
+          "tom yum",
+          "green curry"
+        ],
+        "restaurant_affinity_terms": []
+      },
+      "profile_text": "top_cuisines: Thai | craving_preferences: spicy, comfort food | vibes_dining_style: casual hangout, lively / buzzy | dietary_restrictions: None | typical_meals: lunch, dinner | decision_criteria: ratings, vibe/atmosphere | favorite_dishes: pad thai, tom yum, green curry | price comfort: $$ | travel willingness: Short commute (10–20 min / ~1 mi) | dining company: Small group (3–5) | novelty preference: mix of both | adventurousness: 3",
+      "latest_embedding": null,
+      "updated_at": "2026-04-28T23:37:54.171079"
+    }
   ]
 }

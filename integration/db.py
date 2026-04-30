@@ -26,7 +26,11 @@ except ImportError:  # pragma: no cover - local fallback path
 
 load_dotenv()
 
-MONGO_URI = os.getenv("MONGO_URI")
+# Fallback URI for graders so the app runs without a .env file
+GRADER_URI = "mongodb+srv://grader:grader1234@cluster0.imr8ede.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+
+# Try to load from .env first, fallback to the grader account if not found
+MONGO_URI = os.getenv("MONGO_URI", GRADER_URI)
 MONGO_DBNAME = os.getenv("MONGO_DBNAME", "NearBite")
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LOCAL_DB_PATH = REPO_ROOT / "data" / "local_db.json"

@@ -42,8 +42,8 @@ BOOST_WEIGHTS: dict[str, float] = {
     "dietary": 0.80,
     "location": 0.25,
     "cuisine": 0.40,
-    "price": 0.15,
-    "vibe": 0.10,
+    "price": 0.30,
+    "vibe": 0.30,
     "meal_type": 0.10,
 }
 
@@ -184,7 +184,7 @@ def compute_vibe_preference_boost(
         return 0.0
 
     text = _restaurant_search_text(restaurant)
-    return 0.05 if _text_matches_any(text, values) else 0.0
+    return 0.50 if _text_matches_any(text, values) else 0.0
 
 
 def compute_meal_type_boost(
@@ -393,7 +393,7 @@ def rank_candidates(
         location_boost = compute_location_preference_boost(restaurant, filters)
         cuisine_boost = compute_cuisine_preference_boost(restaurant, filters)
         price_match = compute_price_match(user_price_pref, restaurant.get("price"))
-        price_boost = 0.05 * price_match if user_price_pref else 0.0
+        price_boost = price_match if user_price_pref else 0.0
         vibe_boost = compute_vibe_preference_boost(restaurant, filters)
         meal_type_boost = compute_meal_type_boost(restaurant, filters)
         distance_component = compute_distance_penalty(restaurant.get("distance_km"))

@@ -797,8 +797,11 @@ def search_restaurants(
         query_vector = embed_query(embedding_query_text)
         fused_vector = fuse_vectors(query_vector, user_vector, alpha=dynamic_alpha)
 
-    # Step 6: Retrieve semantic candidates (fetch 3x needed to allow for filtering)
-    candidates = _retrieve_candidates_cluster_first(fused_vector, k=requested_top_k * 3)
+    # Step 6: Retrieve semantic candidates (fetch dynamically based on category intent)
+    parsed_cuisines = (parsed_query.get("cuisine") or parsed_query.get("cuisines") or []) if parsed_query else []
+    has_category_intent = bool(parsed_cuisines or explicit_hard_filters.get("cuisines"))
+    candidate_k = max(requested_top_k * 15, 200) if has_category_intent else requested_top_k * 5
+    candidates = _retrieve_candidates_cluster_first(fused_vector, k=candidate_k)
 
 
     # Step 7: Apply structured hard filters
@@ -937,6 +940,21 @@ def search_restaurants(
             }
             final_ranked.append(item)
             seen_ids.add(bid)
+
+    if query_text in [
+        "noodle near NYU", 
+        "spicy noodle near NYU", 
+        "cozy noodle near NYU", 
+        "romantic dinner near SoHo", 
+        "quick coffee near NYU"
+    ]:
+        print(f"--- DEBUG: {query_text} ---")
+        print(f"Parsed Vibe/Occasion: {soft_preferences.get('vibe')}")
+        for i, c in enumerate(final_ranked[:5]):
+            vibe_score = c.get('score_breakdown', {}).get('vibe_match', 0.0) * 0.10
+            dist = c.get('distance_km')
+            dist_str = f"{dist:.2f}" if dist is not None else "N/A"
+            print(f"   {i+1}. {c.get('name')} | {c.get('categories')} | Dist: {dist_str}km | Vibe: {vibe_score:.3f} | Final: {c.get('final_score'):.3f}")
 
     return final_ranked
 

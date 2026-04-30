@@ -216,6 +216,7 @@ OCCASION_VIBE_KEYWORDS: dict[str, tuple[str, ...]] = {
         "graduation",
         "party",
     ),
+    "spicy": ("spicy", "hot", "kick"),
 }
 
 MEAL_CONTEXT_KEYWORDS: dict[str, tuple[str, ...]] = {
@@ -251,6 +252,7 @@ CUISINE_KEYWORDS: dict[str, tuple[str, ...]] = {
     "noodles": ("noodles", "noodle"),
     "burger": ("burger", "burgers"),
     "salad": ("salad", "salads"),
+    "bagels": ("bagels", "bagel"),
 }
 
 DISTANCE_NEARBY_KEYWORDS: tuple[str, ...] = (
@@ -392,8 +394,6 @@ def _extract_distance_time_intent(
 ) -> dict[str, Any]:
     """Extract proximity and travel-time signals from text."""
     near_me = any(_contains_keyword(normalized_query, alias) for alias in DISTANCE_NEARBY_KEYWORDS)
-    if not near_me and location and re.search(r"\bnear\b", normalized_query):
-        near_me = True
 
     lower_query = raw_query.lower()
     minute_matches = re.findall(r"\b(\d{1,3})\s*(?:min|mins|minute|minutes)\b", lower_query)

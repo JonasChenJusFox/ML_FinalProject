@@ -1,7 +1,7 @@
 metric,value
 parser_exact_match_accuracy,86.41%
-avg_constraint_match@5,76.76%
-avg_precision@5,85.05%
+avg_constraint_match@5,77.54%
+avg_precision@5,85.83%
 avg_personalization_lift@5,12.80%
-avg_latency_ms,195.60
+avg_latency_ms,183.99
 total_crashes,0

@@ -56,9 +56,6 @@ def save_user_profile(username: str, questionnaire_answers: dict) -> None:
     normalized_features = normalize_answers(questionnaire_answers)
     profile_text = build_profile_text(questionnaire_answers)
 
-    existing = profiles_collection.find_one({"username": username}) or {}
-    existing_latest_embedding = existing.get("latest_embedding")
-
     profiles_collection.update_one(
         {"username": username},
         {
@@ -67,7 +64,7 @@ def save_user_profile(username: str, questionnaire_answers: dict) -> None:
                 "raw_answers": questionnaire_answers,
                 "normalized_features": normalized_features,
                 "profile_text": profile_text,
-                "latest_embedding": existing_latest_embedding,
+                "latest_embedding": None,
                 "updated_at": datetime.utcnow(),
             }
         },

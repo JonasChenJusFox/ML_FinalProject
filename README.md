@@ -201,7 +201,7 @@ If cluster assets are missing or fail to load:
 - Build in-memory index from `data/restaurants.json` (or pre-existing embedded vectors).
 - Retrieve global top-k via `retrieve_top_k`.
 
-Candidate pool size is widened to roughly `top_k * 3` before filtering to preserve headroom.
+Candidate pool size is widened dynamically (`top_k * 15` with a minimum of 200 for category intents, or `top_k * 5` otherwise) before filtering to preserve headroom.
 
 ## Hard filtering and fallback behavior
 
@@ -349,7 +349,7 @@ Advanced filter controls are optional; query-first flow remains primary.
 
 - First request can be slower due to model load/download.
 - Cluster assets substantially reduce retrieval search scope.
-- Candidate oversampling (`top_k * 3`) improves final ranking quality under strict filters.
+- Candidate oversampling (typically `top_k * 5` to `top_k * 15`) improves final ranking quality under strict filters.
 
 ### Failure behavior (graceful degradation)
 

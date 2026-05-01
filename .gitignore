@@ -1,5 +1,6 @@
 # Environment files
 .env
+.envbackup
 .venv/
 venv/
 
@@ -23,3 +24,4 @@ recovered_files/
 
 .claude/
 venv/
+.learnings/

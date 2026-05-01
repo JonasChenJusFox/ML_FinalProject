@@ -3,6 +3,16 @@
 NearBite is a Streamlit application for NYC restaurant discovery with semantic retrieval, hard constraints, and personalized ranking.  
 This README is an implementation-accurate, deep technical guide to the current pipeline.
 
+## Team responsibilities
+
+| Name | Role |
+| --- | --- |
+| Yue Li | Data pipeline & preprocessing |
+| Fidaa Abdulkareem | Semantic retrieval & embeddings |
+| Albee Zhou | Ranking algorithm & personalization |
+| Jonas Chen | Frontend, authentication, MongoDB integration, recommendation algorithm |
+| Nick Sidoti | Integration, infra & documentation |
+
 ## Table of contents
 
 - System overview

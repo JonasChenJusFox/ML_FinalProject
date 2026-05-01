@@ -28,6 +28,7 @@ This README is an implementation-accurate, deep technical guide to the current p
 - State and page behavior
 - Caching, performance, and failure behavior
 - Debugging and validation
+- Evaluation
 - Security and production considerations
 - Extension points
 
@@ -389,6 +390,27 @@ When debugging ranking/retrieval regressions, verify:
 - candidate count pre-filter and post-filter,
 - ranking pool size after fallback,
 - top result `score_breakdown`.
+
+## Evaluation
+
+The application includes an offline evaluation pipeline located in `testing/run_evaluation.py`. It runs against CSV fixtures to assess the pipeline's accuracy, relevance, and performance.
+
+### Evaluation metrics
+
+- **Parser exact match accuracy**: Measures how often the deterministic parser perfectly extracts all hard constraints (price, dietary, cuisine, location) compared to human-labeled ground truth.
+- **Average constraint match @5**: Evaluates the top 5 retrieved restaurants to measure the average percentage of explicit query constraints they satisfy.
+- **Average precision @5**: The ratio of retrieved restaurants in the top 5 that are deemed relevant. A restaurant is considered relevant if it meets at least 50% of the expected constraints.
+- **Average personalization lift @5**: Tests search scenarios using synthetic user profiles. Measures the percentage increase in results matching the user's hidden preference tags when using personalized vectors versus an anonymous search.
+- **Average latency**: Measures the end-to-end query processing time (in milliseconds) per search.
+- **Total crashes**: Tracks any unhandled exceptions during the evaluation suite.
+
+### Running the pipeline
+
+Run the evaluation script from the project root:
+
+```bash
+python testing/run_evaluation.py
+```
 
 ## Security and production considerations
 

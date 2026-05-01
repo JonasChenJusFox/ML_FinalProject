@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Analyze diagnostic results and generate comprehensive report.
-"""
+"""Summarize ``testing/diagnostic_run_results.json`` into parser and ranking diagnostics."""
 
 import json
 from pathlib import Path

@@ -1,19 +1,7 @@
 #!/usr/bin/env python3
-"""
-embeddings/elbow.py
-Owner: Fidaa
+"""Sweep K for K-means inertia and plot the elbow to choose ``k`` for :mod:`embeddings.build_index`.
 
-Elbow method for justifying the choice of K in K-Means clustering.
-
-Runs K-Means for a range of K values, computes inertia for each
-(sum of cosine distances from each embedding to its assigned centroid),
-and plots inertia vs K so the optimal K can be identified visually.
-
-The elbow point — where inertia stops decreasing sharply — is the
-recommended value of K to use in build_index.py.
-
-Usage:
-    python -m embeddings.elbow --input data/restaurants.json
+Example: ``python -m embeddings.elbow --input data/restaurants.json``.
 """
 
 import argparse

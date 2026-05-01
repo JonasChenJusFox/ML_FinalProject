@@ -1,15 +1,4 @@
-"""
-frontend/components/restaurant_card.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders individual restaurant cards
-- Displays image, cuisine, rating, address, and review snippet
-- Handles save / like / review actions with login gating
-- Writes normalized interaction state to MongoDB for logged-in users
-- Supports focus-map behavior and comments dialog display
-- Optionally links out to the restaurant source page
-"""
+"""Restaurant card: media, metadata, save/like/review with auth gating, map focus, and comments."""
 
 from __future__ import annotations
 
@@ -347,6 +336,11 @@ def render_restaurant_card(restaurant: dict, key_prefix: str = "card") -> None:
         height=380,
         scrolling=False,
     )
+
+    # Keep card height stable, but let users reveal long addresses on demand.
+    if address and len(address) > 70:
+        with st.expander("Show full address"):
+            st.caption(address)
 
     interaction_map = st.session_state.get("interaction_map", {}) or {}
     record = interaction_map.get(business_id, {})

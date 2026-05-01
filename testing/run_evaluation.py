@@ -1,10 +1,14 @@
+"""Evaluate query parser and search pipeline against CSV fixtures under ``testing/``.
+
+Inserts the project root on ``sys.path`` so ``integration`` and ``embeddings`` import cleanly.
+"""
+
 import csv
 import time
 import os
 import sys
 from pathlib import Path
 
-# Set up system path to import project modules
 TESTING_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = TESTING_DIR.parent
 sys.path.append(str(PROJECT_ROOT))

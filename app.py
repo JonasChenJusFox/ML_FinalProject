@@ -1,3 +1,5 @@
+"""Streamlit entrypoint: page config, theme, optional backend search, and :mod:`frontend.ui`."""
+
 from __future__ import annotations
 
 from pathlib import Path

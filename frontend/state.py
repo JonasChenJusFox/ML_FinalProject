@@ -1,13 +1,4 @@
-"""
-frontend/state.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Initializes Streamlit session state defaults
-- Stores temporary UI data such as saved restaurants and viewed restaurants
-- Maintains current page, search state, and location state
-- Supports profile, wrapped, and map interactions across reruns
-"""
+"""Default session keys for navigation, search, filters, and profile-related UI."""
 
 from __future__ import annotations
 

@@ -1,12 +1,4 @@
-"""
-integration/wrapped_repo.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Loads normalized interaction history from MongoDB
-- Aggregates wrapped summary signals from saved and interaction history
-- Provides database-backed wrapped stats for profile and recommendation flows
-"""
+"""Build wrapped / recap statistics from saved places and interaction history in MongoDB."""
 
 from __future__ import annotations
 

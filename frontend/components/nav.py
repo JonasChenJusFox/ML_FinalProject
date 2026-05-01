@@ -1,13 +1,4 @@
-"""
-frontend/components/nav.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the standard top navigation bar for the NearBite app
-- Displays the NearBite logo and main navigation controls
-- Supports switching between Home, Discover, Profile, and Account
-- Uses a normal top layout without sticky or fixed behavior
-"""
+"""Top navigation: logo and links for Home, Discover, Profile, and Account."""
 
 from __future__ import annotations
 

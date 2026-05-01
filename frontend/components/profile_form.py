@@ -1,13 +1,4 @@
-"""
-frontend/components/profile_form.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the profile preference form
-- Collects favorite cuisines, dietary preferences, price comfort, and vibe preferences
-- Stores frontend profile choices in session state
-- Supports the demo version of personalization without database persistence
-"""
+"""Legacy-style profile form (cuisines, dietary, price, vibes) stored in session state."""
 
 from __future__ import annotations
 

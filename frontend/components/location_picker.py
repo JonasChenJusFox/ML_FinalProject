@@ -1,13 +1,4 @@
-"""
-frontend/components/location_picker.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the current-location control in the Discover page
-- Connects browser geolocation to frontend session state
-- Allows the app to switch from the default NYU origin to the user's location
-- Supports location-based travel-time filtering
-"""
+"""Discover-page geolocation and zip lookup to set search origin and distance filters."""
 
 from __future__ import annotations
 

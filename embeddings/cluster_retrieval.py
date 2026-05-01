@@ -1,17 +1,6 @@
-#!/usr/bin/env python3
-"""
-embeddings/cluster_retrieval.py
-Owner: Fidaa
+"""Cluster-first retrieval: nearest centroid, then top-k cosine matches inside that cluster.
 
-Cluster-based retrieval for the restaurant discovery pipeline.
-
-Loads precomputed restaurant embeddings and cluster centroids from disk,
-then at query time finds the nearest cluster and returns the top-k most
-similar restaurants within that cluster as candidates for re-ranking.
-
-This module is the handoff point between the embedding/retrieval layer
-and the user modeling + ranking layer. Its output is a shortlist of
-~20 candidates passed to ranking.py for personalized re-ranking.
+Loads embeddings and centroids written by :mod:`embeddings.build_index`; output feeds ranking.
 """
 
 import json

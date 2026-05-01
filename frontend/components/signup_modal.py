@@ -1,13 +1,4 @@
-"""
-frontend/components/signup_modal.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the sign up modal dialog
-- Collects username, email, and password input
-- Creates a new user account in MongoDB
-- Logs the user in immediately after successful account creation
-"""
+"""Signup ``@st.dialog``: new user fields, MongoDB create, and immediate login."""
 
 from __future__ import annotations
 

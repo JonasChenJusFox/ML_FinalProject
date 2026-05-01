@@ -1,16 +1,7 @@
-"""
-integration/api.py
-Owner: Nick
+"""Backend search API: embeddings, cluster retrieval, filters, and personalized ranking.
 
-Responsibilities:
-- Glue layer connecting data, embeddings, and ranking modules
-- Single entry point for the frontend to call
-- Orchestrates the full search pipeline:
-    1. Embed the query
-    2. Retrieve semantic candidates
-    3. Apply structured filters
-    4. Rank and personalize results
-    5. Return final result list
+The Streamlit app calls :func:`search_restaurants` and :func:`get_all_restaurants` here.
+Pipeline: parse query → build user vector → retrieve candidates → hard/soft filters → rank.
 """
 
 from __future__ import annotations
@@ -940,21 +931,6 @@ def search_restaurants(
             }
             final_ranked.append(item)
             seen_ids.add(bid)
-
-    if query_text in [
-        "noodle near NYU", 
-        "spicy noodle near NYU", 
-        "cozy noodle near NYU", 
-        "romantic dinner near SoHo", 
-        "quick coffee near NYU"
-    ]:
-        print(f"--- DEBUG: {query_text} ---")
-        print(f"Parsed Vibe/Occasion: {soft_preferences.get('vibe')}")
-        for i, c in enumerate(final_ranked[:5]):
-            vibe_score = c.get('score_breakdown', {}).get('vibe_match', 0.0) * 0.10
-            dist = c.get('distance_km')
-            dist_str = f"{dist:.2f}" if dist is not None else "N/A"
-            print(f"   {i+1}. {c.get('name')} | {c.get('categories')} | Dist: {dist_str}km | Vibe: {vibe_score:.3f} | Final: {c.get('final_score'):.3f}")
 
     return final_ranked
 

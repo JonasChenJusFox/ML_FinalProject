@@ -1,10 +1,4 @@
-"""
-frontend/components/post_signup_questionnaire_dialog.py
-
-Responsibilities:
-- Opens the onboarding questionnaire in a dialog immediately after sign-up
-- Avoids duplicate form widgets by coordinating with the Profile page gate
-"""
+"""Post-signup questionnaire dialog; coordinates with profile page to avoid duplicate widgets."""
 
 from __future__ import annotations
 

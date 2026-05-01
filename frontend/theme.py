@@ -1,13 +1,4 @@
-"""
-frontend/theme.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Applies custom visual theme to the Streamlit app
-- Loads CSS and frontend assets
-- Injects branding, colors, and layout styling
-- Supports consistent appearance across all pages
-"""
+"""Load NearBite assets and inject global Streamlit CSS for consistent layout and branding."""
 
 from __future__ import annotations
 

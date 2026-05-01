@@ -1,13 +1,4 @@
-"""
-integration/db.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Loads MongoDB configuration from environment variables
-- Creates the shared MongoDB client connection
-- Exposes the NearBite database handle
-- Provides helper functions for collection access
-"""
+"""MongoDB client, database handle, and typed collection accessors for NearBite."""
 
 from __future__ import annotations
 

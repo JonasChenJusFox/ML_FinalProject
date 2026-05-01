@@ -1,13 +1,4 @@
-"""
-frontend/components/comments_modal.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders a single global comments modal
-- Displays review snippets for the currently selected restaurant
-- Reads comment dialog state from Streamlit session state
-- Prevents multiple dialogs from being opened in the same script run
-"""
+"""Global review-snippet dialog; respects :func:`frontend.components.dialog_gate.can_open_dialog`."""
 
 from __future__ import annotations
 

@@ -1,12 +1,4 @@
-"""
-frontend/components/hero.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the homepage hero section
-- Displays the main marketing message and search-oriented introduction
-- Supports branded visual presentation for the landing area
-"""
+"""Homepage hero banner and introductory copy above the main search area."""
 
 from __future__ import annotations
 

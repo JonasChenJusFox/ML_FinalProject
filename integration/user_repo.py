@@ -1,13 +1,4 @@
-"""
-integration/user_repo.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Handles MongoDB reads and writes for user accounts
-- Stores and retrieves onboarding questionnaire answers
-- Supports sign up, login, and password reset flows
-- Keeps database access separate from Streamlit UI logic
-"""
+"""MongoDB CRUD for user accounts, credentials, and persisted questionnaire profiles."""
 
 from __future__ import annotations
 

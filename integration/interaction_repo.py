@@ -1,13 +1,4 @@
-"""
-integration/interaction_repo.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Handles MongoDB reads and writes for user restaurant interactions
-- Standardizes save / like / review into one normalized interaction format
-- Keeps saved restaurant compatibility for existing UI/session state
-- Exposes simple helpers for profile and personalization flows
-"""
+"""Persist and query saves, likes, and reviews as normalized MongoDB interaction records."""
 
 from __future__ import annotations
 

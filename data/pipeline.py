@@ -1,13 +1,4 @@
-"""
-data/pipeline.py
-Owner: Yue
-
-Responsibilities:
-- Ingest restaurant data from Yelp Fusion API
-- Clean and normalize fields
-- Structure dataset for embedding and search
-- Build user interaction history table (synthetic or real)
-"""
+"""Load or fetch restaurant data and user interactions for embeddings and the search API."""
 
 from __future__ import annotations
 

@@ -1,14 +1,6 @@
-"""
-frontend/ui.py
-Owner: Jonas Chen
+"""Streamlit shell: theme, navigation, auth modals, and page routing.
 
-Responsibilities:
-- Main frontend router for the Streamlit app
-- Connects navigation state to page rendering
-- Passes restaurant data into the correct view
-- Stores frontend-ready data and filter options in session state
-- Coordinates the overall UI flow of the application
-- Initializes authentication state and global modal rendering
+Connects session state to Home, Discover, Profile, and Account views.
 """
 
 from __future__ import annotations

@@ -1,12 +1,4 @@
-"""
-frontend/components/wrapped_card.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders summary cards on the Wrapped page
-- Displays recap metrics in a clean and consistent format
-- Supports the session-based NearBite recap experience
-"""
+"""Styled recap metric tile for wrapped-style summaries on the profile page."""
 
 from __future__ import annotations
 

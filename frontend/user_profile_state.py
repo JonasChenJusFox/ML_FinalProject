@@ -1,13 +1,4 @@
-"""
-frontend/user_profile_state.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Stores onboarding questionnaire answers in Streamlit session state
-- Loads questionnaire answers from MongoDB after login
-- Saves profile data to MongoDB when the questionnaire is submitted
-- Supports future migration to richer user profile storage
-"""
+"""Questionnaire answers in session state with MongoDB load/save via :mod:`integration.user_repo`."""
 
 from __future__ import annotations
 

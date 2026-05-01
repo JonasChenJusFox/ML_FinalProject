@@ -1,12 +1,4 @@
-"""
-frontend/components/empty_state.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders reusable empty-state UI blocks
-- Displays helpful messages when no restaurants or results are available
-- Improves clarity and polish across pages with missing data
-"""
+"""Reusable empty-state panel (title + body) when lists or results are missing."""
 
 from __future__ import annotations
 

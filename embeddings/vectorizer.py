@@ -1,16 +1,7 @@
-#!/usr/bin/env python3
-"""
-embeddings/vectorizer.py
-Owner: Fidaa
+"""Sentence-transformer helpers: model cache, embed text, and cosine similarity.
 
-Core embedding utilities for the restaurant discovery pipeline.
-
-Provides low-level embedding and similarity functions used across all modules.
-All embeddings are normalized vectors.
-
-NOTE: All modules (vectorizer, build_index, cluster_retrieval, user modeling)
-must use the same model to ensure embedding spaces are compatible.
-Default model: sentence-transformers/multi-qa-mpnet-base-cos-v1.
+The first model loaded via :func:`get_embedding_model` is cached for the process; all pipeline
+stages must use the same model as the offline index (default ``multi-qa-mpnet-base-cos-v1``).
 """
 
 from typing import Any

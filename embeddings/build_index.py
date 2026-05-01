@@ -1,21 +1,8 @@
 #!/usr/bin/env python3
-"""
-embeddings/build_index.py
-Owner: Fidaa
+"""Offline K-means over restaurant embeddings; writes ``restaurant_embeddings.json`` and ``cluster_centroids.json``.
 
-Offline index builder for the restaurant discovery pipeline.
-
-Loads restaurant data, computes embeddings, runs K-Means clustering,
-and saves the results to disk. Run this script once (or whenever the
-restaurant data changes) before starting the app.
-
-Outputs:
-    data/restaurant_embeddings.json  — list of {business_id, name, embedding, cluster_id,
-                                        rating, review_count, price, distance_km, categories}
-    data/cluster_centroids.json      — object mapping cluster_id -> centroid
-
-Usage:
-    python build_index.py --input data/restaurants.json --k 20
+Run when the corpus changes before serving search. Example:
+``python -m embeddings.build_index --input data/restaurants.json --k 20``.
 """
 
 import argparse

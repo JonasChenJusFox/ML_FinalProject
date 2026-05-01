@@ -1,13 +1,4 @@
-"""
-frontend/components/login_modal.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the login modal dialog
-- Collects username and password input
-- Supports navigation to sign up and forgot password flows
-- Updates authentication state after successful login
-"""
+"""Login ``@st.dialog``: credentials, links to signup/forgot password, and session auth."""
 
 from __future__ import annotations
 

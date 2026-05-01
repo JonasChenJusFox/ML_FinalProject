@@ -1,12 +1,4 @@
-"""
-frontend/views/home.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the simplified NearBite homepage
-- Displays the main search bar and direct route into Discover
-- Shows recommendation or nearby restaurant cards below the search area
-"""
+"""Homepage: hero search bar, jump to Discover, and preview recommendation cards."""
 
 from __future__ import annotations
 

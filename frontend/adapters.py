@@ -1,14 +1,4 @@
-"""
-frontend/adapters.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Converts raw restaurant records into frontend-friendly display data
-- Normalizes fields such as address, price, image, and review snippet
-- Computes travel time from the current origin
-- Provides helper functions for wrapped statistics and frontend filters
-- Keeps UI rendering logic separate from raw dataset structure
-"""
+"""Normalize API restaurant payloads for display, travel time, wrapped stats, and filter options."""
 
 from __future__ import annotations
 

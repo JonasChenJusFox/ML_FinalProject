@@ -1,13 +1,4 @@
-"""
-frontend/components/results_toolbar.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the results toolbar above the restaurant list
-- Displays result counts and view/display controls
-- Supports options such as how many results to show at once
-- Keeps result summary controls separate from the main Discover layout
-"""
+"""Toolbar above the result list: counts and grid/list display options."""
 
 from __future__ import annotations
 

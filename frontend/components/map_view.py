@@ -1,13 +1,4 @@
-"""
-frontend/components/map_view.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the interactive restaurant map
-- Displays restaurant markers based on filtered results
-- Highlights the currently focused restaurant
-- Supports clicking map markers to refocus results and open the restaurant profile dialog
-"""
+"""Folium map of results with marker clicks driving focus and the restaurant profile dialog."""
 
 from __future__ import annotations
 

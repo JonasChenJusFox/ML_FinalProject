@@ -1,9 +1,4 @@
-"""
-frontend/components/restaurant_profile_dialog.py
-
-Responsibilities:
-- Shows a full restaurant card in a dialog (e.g. after a map marker click)
-"""
+"""Full-width restaurant card in a ``@st.dialog`` (e.g. after selecting a map pin)."""
 
 from __future__ import annotations
 

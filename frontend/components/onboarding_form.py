@@ -1,14 +1,4 @@
-"""
-frontend/components/onboarding_form.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the user onboarding questionnaire form
-- Collects structured preference inputs for recommendation
-- Prefills questionnaire answers from session state / MongoDB-loaded profile data
-- Saves questionnaire answers into session state and MongoDB
-- Supports editing and resubmitting profile answers over time
-"""
+"""Onboarding questionnaire UI: collect preferences, prefill from state/DB, save to MongoDB."""
 
 from __future__ import annotations
 

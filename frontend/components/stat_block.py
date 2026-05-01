@@ -1,13 +1,4 @@
-"""
-frontend/components/stat_block.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders small summary statistic blocks across the app
-- Displays values such as dataset size, saved places, or average rating
-- Provides a consistent visual format for compact metrics
-- Helps keep repeated stat-card markup reusable
-"""
+"""Small labeled metric card used for dataset or user summary numbers."""
 
 from __future__ import annotations
 

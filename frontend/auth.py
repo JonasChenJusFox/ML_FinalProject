@@ -1,14 +1,4 @@
-"""
-frontend/auth.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Manages authentication state for the Streamlit app
-- Stores login, logout, and modal visibility logic
-- Connects sign up, login, and password reset flows to MongoDB
-- Keeps current user identity in Streamlit session state
-- Synchronizes saved restaurant ids after login and logout
-"""
+"""Login, signup, password reset, and modal visibility backed by MongoDB user collections."""
 
 from __future__ import annotations
 

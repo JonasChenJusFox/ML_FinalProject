@@ -1,13 +1,4 @@
-"""
-frontend/components/forgot_password_modal.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the forgot password modal dialog
-- Collects username and replacement password input
-- Updates the user's password in MongoDB
-- Redirects the user back to the login flow after reset
-"""
+"""Forgot-password ``@st.dialog``: reset password in MongoDB and return to login."""
 
 from __future__ import annotations
 

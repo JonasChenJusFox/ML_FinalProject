@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""
-Diagnostic runner for NearBite ranking pipeline.
-
-Runs 10 test queries for test_user_11 and captures detailed scoring information
-without modifying app behavior.
-"""
+"""Run fixed test queries for ``test_user_11`` and dump detailed scores (no app UI changes)."""
 
 from __future__ import annotations
 

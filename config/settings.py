@@ -1,9 +1,6 @@
-"""
-config/settings.py
-Owner: Nick
+"""Environment-driven settings: Yelp, database URL, embedding model, and app defaults.
 
-Central configuration. All API keys and environment variables are loaded here.
-Never commit real keys — use a .env file (see .env.example).
+Values come from ``os.environ`` after ``load_dotenv()``; use ``.env`` locally (see ``.env.example``).
 """
 
 import os

@@ -1,14 +1,4 @@
-"""
-frontend/views/profile.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the combined profile page
-- Displays database-backed wrapped summary at the top
-- Displays saved restaurants below the summary
-- Provides access to the questionnaire/profile form
-- Connects profile actions to frontend state and login flow
-"""
+"""Profile: wrapped summary, saved restaurants, onboarding form, and login gates."""
 
 from __future__ import annotations
 

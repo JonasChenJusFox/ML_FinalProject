@@ -1,10 +1,4 @@
-"""
-frontend/components/dialog_gate.py
-
-Responsibilities:
-- Enforces Streamlit's one-dialog-per-script-run rule
-- Provides a small session-state gate for dialog rendering
-"""
+"""Allow only one ``@st.dialog`` per script run via a session-state gate."""
 
 from __future__ import annotations
 

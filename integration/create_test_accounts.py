@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-"""
-scripts/create_test_accounts.py
+"""Create or reset diverse test users and questionnaire profiles (idempotent, safe to rerun).
 
-Generates 25 ready-to-use test accounts with diverse personas.
-Safe to rerun: it will reset passwords and overwrite profiles if they already exist.
+Adds the repo root to ``sys.path`` and uses :mod:`integration.user_repo`.
 """
 
 import sys
 from pathlib import Path
 
-# Ensure the script can import from the root project directory
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from integration.user_repo import (

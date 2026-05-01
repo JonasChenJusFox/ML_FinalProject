@@ -1,12 +1,4 @@
-"""
-frontend/views/account.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders account entry points without changing auth/session behavior
-- Shows logged-in user state
-- Keeps login, signup, and logout easy to reach from the main nav
-"""
+"""Account page: current user info and entry points for login, signup, and logout."""
 
 from __future__ import annotations
 

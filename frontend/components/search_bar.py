@@ -1,13 +1,4 @@
-"""
-frontend/components/search_bar.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the main search bar UI for restaurant discovery
-- Collects natural-language search queries from the user
-- Connects search input to Streamlit session state
-- Supports query reuse across Home and Discover pages
-"""
+"""Natural-language search input wired to ``st.session_state`` for Home and Discover."""
 
 from __future__ import annotations
 

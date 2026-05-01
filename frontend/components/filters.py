@@ -1,13 +1,4 @@
-"""
-frontend/components/filters.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders reusable filter controls for restaurant discovery
-- Supports structured filtering such as cuisine, borough, price, rating, and radius
-- Connects filter widget values to Streamlit session state
-- Helps keep filtering UI separate from page-level view logic
-"""
+"""Sidebar filter widgets (cuisine, borough, price, rating, radius, sort) in session state."""
 
 from __future__ import annotations
 

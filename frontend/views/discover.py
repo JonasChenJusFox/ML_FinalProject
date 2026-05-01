@@ -1,14 +1,4 @@
-"""
-frontend/views/discover.py
-Owner: Jonas Chen
-
-Responsibilities:
-- Renders the main restaurant discovery page
-- Keeps search query-first, with optional advanced filters
-- Displays map results and restaurant cards
-- Supports focus-map behavior and result reordering
-- Provides clear feedback about current search/filter state
-"""
+"""Main discovery page: search, filters, map, cards, and profile dialog from map pins."""
 
 from __future__ import annotations
 

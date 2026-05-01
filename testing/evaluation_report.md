@@ -10,7 +10,7 @@ This report outlines the evaluation pipeline for the NearBite restaurant recomme
 ## 2. Methodology
 - **Rule-Based Relevance Definition**: A restaurant is deemed relevant if it matches at least 50% of the explicit constraints defined in the expected ground truth (cuisine, dietary, price). 
 - **Synthetic Profiles**: 10 synthetic user scenarios were created representing distinct personas (e.g., vegan, meat-lover, sweet-tooth) to test the `user_id` vector fusion logic.
-- **Limitations**: The static JSON dataset size and manual ground truth labeling might not capture full real-world tail query behavior. Furthermore, LLM-based query parsing may be non-deterministic.
+- **Limitations**: The static JSON dataset size and manual ground truth labeling might not capture full real-world tail query behavior.
 
 ## 3. Results Summary
 - **Parser Exact Match Accuracy**: 86.41%
